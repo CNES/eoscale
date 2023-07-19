@@ -16,7 +16,8 @@ In addition, EOScale provides a Map/Reduce paradigm that uses a tiling strategy 
 
 To see how it is easy, just look at this example below that chain 3 uniform filter of different sizes in memory and in parallel with EOScale:
 
-```
+```python
+
 import eoscale.shared as eosh
 import eoscale.eo_io as eoio
 import eoscale.utils as eotools
