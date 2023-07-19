@@ -128,5 +128,7 @@ if __name__ == "__main__":
 
 Just clone this repo and pip install it ;)
 
+The only requirement is to use a version of Python greater or equal than 3.8
+
 
 
