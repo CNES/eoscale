@@ -14,7 +14,7 @@ In addition, EOScale provides a Map/Reduce paradigm that uses a tiling strategy 
 
 ## Example with documentation
 
-To see how it is easy, just look at this example below that chain 3 uniform filter of different sizes in memory and in parallel with EOScale:
+To see how it is easy, just look at this example below that chains 3 uniform filters of different sizes in memory and in parallel with EOScale, you can monitor the memory consumption and you will see that no duplicates are stored for each process:
 
 ```python
 
@@ -124,7 +124,9 @@ if __name__ == "__main__":
 
 ```
 
+## Want to use it ?
 
+Just clone this repo and pip install it ;)
 
 
 
