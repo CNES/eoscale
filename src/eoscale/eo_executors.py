@@ -6,6 +6,7 @@ import numpy
 import eoscale.shared as eosh
 import eoscale.eo_io as eoio
 import eoscale.utils as eotools
+import eoscale.manager as eom
 
 
 def compute_mp_strips(input_vpath: str,
@@ -110,67 +111,91 @@ def execute_map_filter_n_images(map_filter: Callable,
     
     return output_buffers, s
 
-def n_images_to_m_images_filter(input_vpaths: list = None,
-                                map_filter: Callable = None,
-                                map_params: dict = None,
-                                metatada_transformer: Callable = None,
-                                reduce_filter: Callable = None,
+def n_images_to_m_images_filter(inputs: list = None, 
+                                image_filter: Callable = None,
+                                image_parameters: dict = None,
+                                generate_output_profiles: Callable = None,
+                                concatenate_filter: Callable = None,
                                 stable_margin: int = None,
-                                nb_workers: int = None,
-                                map_desc: str = "Map multi processing...") -> list:
+                                context_manager: eom.EOContextManager = None) -> list:
     """
         Generic paradigm to process n images providing m resulting images using a paradigm
         similar to the good old map/reduce
 
-        map filter is processed in parallel
-        reduce filter is processed by the master node to aggregate results
+        image_filter is processed in parallel
+        concatenate_filter is processed by the master node to aggregate results
 
         Strong hypothesis: all input image are in the same geometry and have the same size
     """
-    if len(input_vpaths) < 1:
-        raise ValueError("You must give at least one eoscale virtual path")
-
+    
     # compute the strips
     strips = compute_mp_strips(input_vpath = input_vpaths[0],
                                stable_margin = stable_margin,
                                nb_workers = nb_workers)
+
+    pass
+
+# def n_images_to_m_images_filter(input_vpaths: list = None,
+#                                 map_filter: Callable = None,
+#                                 map_params: dict = None,
+#                                 metatada_transformer: Callable = None,
+#                                 reduce_filter: Callable = None,
+#                                 stable_margin: int = None,
+#                                 nb_workers: int = None,
+#                                 map_desc: str = "Map multi processing...") -> list:
+#     """
+#         Generic paradigm to process n images providing m resulting images using a paradigm
+#         similar to the good old map/reduce
+
+#         map filter is processed in parallel
+#         reduce filter is processed by the master node to aggregate results
+
+#         Strong hypothesis: all input image are in the same geometry and have the same size
+#     """
+#     if len(input_vpaths) < 1:
+#         raise ValueError("You must give at least one eoscale virtual path")
+
+#     # compute the strips
+#     strips = compute_mp_strips(input_vpath = input_vpaths[0],
+#                                stable_margin = stable_margin,
+#                                nb_workers = nb_workers)
     
-    # call the metadata transformer if provided, 
-    # if not then input metadata are the same of output metadata
-    output_metadatas = None
-    if metatada_transformer is not None:
-        output_metadatas = metatada_transformer(input_vpaths, map_params)
-    else:
-        output_metadatas = copy_input_metadatas(input_vpaths)
+#     # call the metadata transformer if provided, 
+#     # if not then input metadata are the same of output metadata
+#     output_metadatas = None
+#     if metatada_transformer is not None:
+#         output_metadatas = metatada_transformer(input_vpaths, map_params)
+#     else:
+#         output_metadatas = copy_input_metadatas(input_vpaths)
 
-    # Allocate in memory for the master process the outputs
-    outputs = allocate_outputs(output_metadatas)
+#     # Allocate in memory for the master process the outputs
+#     outputs = allocate_outputs(output_metadatas)
     
-    with concurrent.futures.ProcessPoolExecutor(max_workers=nb_workers) as executor:
+#     with concurrent.futures.ProcessPoolExecutor(max_workers=nb_workers) as executor:
 
-        futures = { executor.submit(execute_map_filter_n_images,
-                                    map_filter,
-                                    map_params,
-                                    input_vpaths, 
-                                    s) for s in strips }
+#         futures = { executor.submit(execute_map_filter_n_images,
+#                                     map_filter,
+#                                     map_params,
+#                                     input_vpaths, 
+#                                     s) for s in strips }
 
-        for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=map_desc):
+#         for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=map_desc):
 
-            chunk_output_buffers, strip = future.result()
+#             chunk_output_buffers, strip = future.result()
 
-            if reduce_filter is not None:
-                reduce_filter( outputs, chunk_output_buffers, strip )
-            else:
-                default_reduce(outputs, chunk_output_buffers, strip )
+#             if reduce_filter is not None:
+#                 reduce_filter( outputs, chunk_output_buffers, strip )
+#             else:
+#                 default_reduce(outputs, chunk_output_buffers, strip )
     
-    # Create eo_shared instances of the outputs and return it to the user
-    output_eoshared_instances = []
-    for o in range(len(outputs)):
-        output_eoshared_instances.append(eosh.EOShared())
-        output_eoshared_instances[-1].create_from_in_memory_array(big_array = outputs[o], user_metadata=output_metadatas[o])
-        outputs[o] = None
+#     # Create eo_shared instances of the outputs and return it to the user
+#     output_eoshared_instances = []
+#     for o in range(len(outputs)):
+#         output_eoshared_instances.append(eosh.EOShared())
+#         output_eoshared_instances[-1].create_from_in_memory_array(big_array = outputs[o], user_metadata=output_metadatas[o])
+#         outputs[o] = None
     
-    return output_eoshared_instances
+#     return output_eoshared_instances
 
 
     
