@@ -1,3 +1,5 @@
+import rasterio
+
 import eoscale.shared as eosh
 
 class EOContextManager:
@@ -31,6 +33,26 @@ class EOContextManager:
         new_shared_resource.create_from_raster_path(raster_path = raster_path)
         self.shared_resources[new_shared_resource.virtual_path] = new_shared_resource
         return new_shared_resource.virtual_path
+    
+    def release(self, key: str):
+        """
+            Release definitely the corresponding shared resource
+        """
+        if key in self.shared_resources:
+            self.shared_resources[key].release()
+            del self.shared_resources[key]
+    
+    def write(self, key: str, img_path: str):
+        """
+            Write the corresponding shared resource to disk
+        """
+        if key in self.shared_resources:
+            profile = self.shared_resources[key].get_profile()
+            img_buffer = self.shared_resources[key].get_array()
+            with rasterio.open( img_path, "w", **profile) as out_dataset:
+                out_dataset.write(img_buffer)
+        else:
+            print(f"WARNING: the key {key} to write is not known by the context manager")
     
     def start(self):
         if len(self.shared_resources) > 0:

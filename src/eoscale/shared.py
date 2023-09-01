@@ -142,7 +142,7 @@ class EOShared:
             start_x = tile.start_x - tile.left_margin
             end_x = tile.end_x + tile.right_margin + 1
             return numpy.ndarray(array_shape,
-                                 dtype=metadata['dtype'],
+                                 dtype=profile['dtype'],
                                  buffer=self.shared_array_memory.buf)[:, start_y:end_y, start_x:end_x]
     
     def close(self):
