@@ -11,10 +11,10 @@ def uniform_filter(input_buffers: list, params: dict) -> list:
 if __name__ == "__main__":
 
     # Change with your one channel image
-    # input_image_path: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/debug_ny/dsm_NEW-YORK_tuile_1.tif"
-    # output_image_path: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/eoscale/smooth_dsm.tif"
-    input_image_path: str = "/work/scratch/lassalp/AI4GEO_WORKSPACE/input/dsm.tif"
-    output_image_path: str = "/work/scratch/lassalp/AI4GEO_WORKSPACE/output/smooth_dsm.tif"
+    input_image_path: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/debug_ny/dsm_NEW-YORK_tuile_1.tif"
+    output_image_path: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/eoscale/smooth_dsm.tif"
+    # input_image_path: str = "/work/scratch/lassalp/AI4GEO_WORKSPACE/input/dsm.tif"
+    # output_image_path: str = "/work/scratch/lassalp/AI4GEO_WORKSPACE/output/smooth_dsm.tif"
 
     nb_workers: int = 8
     tile_mode: bool = True

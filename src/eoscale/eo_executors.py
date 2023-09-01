@@ -156,6 +156,8 @@ def execute_filter_n_images(image_filter: Callable,
         area from the resulting outputs before returning them.
     """
 
+    print("hey guy")
+
     # Create the input shared instances
     input_eoshareds = [ eosh.EOShared(virtual_path=v_path) for v_path in inputs ]
 
@@ -182,12 +184,12 @@ def execute_filter_n_images(image_filter: Callable,
     
     return output_buffers, tile
 
-# def default_reduce(outputs: list, 
-#                    chunk_output_buffers: list, 
-#                    strip: eotools.MpStrip) -> None:
-#     """ Fill the outputs buffer with the results provided by the map filter from a strip """
-#     for c in range(len(chunk_output_buffers)):
-#         outputs[c][:, strip.start_y: strip.end_y + 1,:] = chunk_output_buffers[c][:,:,:]
+def default_reduce(outputs: list, 
+                   chunk_output_buffers: list, 
+                   tile: eotools.MpTile) -> None:
+    """ Fill the outputs buffer with the results provided by the map filter from a strip """
+    for c in range(len(chunk_output_buffers)):
+        outputs[c][:, tile.start_y: tile.end_y + 1, tile.start_x : tile.end_x + 1] = chunk_output_buffers[c][:,:,:]
 
 def n_images_to_m_images_filter(inputs: list = None, 
                                 image_filter: Callable = None,
@@ -238,12 +240,24 @@ def n_images_to_m_images_filter(inputs: list = None,
     output_eoshareds = allocate_outputs(profiles = output_profiles,
                                         context_manager = context_manager)
     
+    outputs = [ eoshared_inst.get_array() for eoshared_inst in output_eoshareds]
+
+    print(len(outputs), outputs[0].shape)
+
+
+    print(context_manager.nb_workers)
+    
     # Multi processing execution
     with concurrent.futures.ProcessPoolExecutor(max_workers=context_manager.nb_workers) as executor:
         futures = { executor.submit(execute_filter_n_images(image_filter,
                                                             filter_parameters,
                                                             inputs,
-                                                            tile) for tile in tiles }
+                                                            tile) for tile in tiles) }
+        
+        for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=map_desc):
+
+            chunk_output_buffers, tile = future.result()
+            default_reduce(outputs, chunk_output_buffers, tile )
 
     # Close output shared instances
     for o in output_eoshareds:
