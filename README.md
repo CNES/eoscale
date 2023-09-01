@@ -23,7 +23,7 @@ To see how it is easy, just look at this example below that chains in memory 3 f
 1. Image nodata filling with interpolation
 1. Image smoothing
 
-You can profile and monitor the memory consumption and you will see that no duplicates are stored for each process. You will also see how fast it is if you use multiple CPUs. We are close to real simultaneous multithreading !
+You can profile and monitor the memory consumption and you will see that no duplicates are stored for each process. You will also see how fast it is if you use multiple CPUs. We are really close to real simultaneous multithreading !
 
 ```python
 
