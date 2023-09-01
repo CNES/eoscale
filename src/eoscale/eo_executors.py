@@ -2,34 +2,33 @@ from typing import Callable
 import concurrent.futures
 import tqdm
 import numpy
+import math
+import copy
 
 import eoscale.shared as eosh
 import eoscale.eo_io as eoio
 import eoscale.utils as eotools
 import eoscale.manager as eom
 
-
-def compute_mp_strips(input_vpath: str,
-                      stable_margin: int,
-                      nb_workers: int):
+def compute_mp_strips(image_height: int,
+                      image_width: int,
+                      nb_workers: int,
+                      stable_margin: int) -> list :
     """
-        Given an input eoscale virtual path an nb_workers,
-        this method computes the list of strips that will
-        be processed in parallel within a stream strip or tile 
+        Return a list of strips 
     """
 
-    eo_shared_inst = eosh.EOShared(eoshared_vpath=input_vpath)
-    metadata = eo_shared_inst.get_metadata()
-
-    image_width = int(metadata['width'])
-    image_height = int(metadata['height'])
     strip_height = image_height // nb_workers
 
     strips = []
+    start_x: int = 0
+    end_x: int = image_width - 1
     start_y: int = None
     end_y: int = None
     top_margin: int = None
+    right_margin: int = 0
     bottom_margin: int = None
+    left_margin: int = 0
 
     for worker in range(nb_workers):
 
@@ -44,76 +43,155 @@ def compute_mp_strips(input_vpath: str,
         bottom_margin = stable_margin if end_y + stable_margin <= image_height - 1 else image_height - 1 - end_y
 
 
-        strips.append(eotools.MpStrip(start_x = 0, 
-                              start_y = start_y, 
-                              end_x = image_width - 1, 
-                              end_y = end_y, 
-                              top_margin = top_margin, 
-                              bottom_margin = bottom_margin))
-                    
-    # Always close the shared resource
-    eo_shared_inst.close()
+        strips.append(eotools.MpTile(start_x = start_x, 
+                                     start_y = start_y, 
+                                     end_x = end_x, 
+                                     end_y = end_y, 
+                                     top_margin = top_margin,
+                                     right_margin=right_margin, 
+                                     bottom_margin = bottom_margin,
+                                     left_margin = left_margin))
 
     return strips
 
-def copy_input_metadatas(input_vpaths: list) -> list:
-    """ Naive copy of input metadatas into a list """
-    eo_shared_instances = [ eosh.EOShared(input_vpath) for input_vpath in input_vpaths ]
-    output_mtds = [ eo_shared_instances[i].get_metadata() for i in range(len(input_vpaths)) ]
-
-    for eo_shared_inst in eo_shared_instances:
-        eo_shared_inst.close()
-    
-    return output_mtds
-
-def allocate_outputs(metadatas: list) -> list:
+def compute_mp_tiles(inputs: list,
+                     stable_margin: int,
+                     nb_workers: int,
+                     tile_mode: bool):
     """
-        Given a list of transformed metadatas, this function
-        returns a list of allocated output numpy arrays 
+        Given an input eoscale virtual path an nb_workers,
+        this method computes the list of strips that will
+        be processed in parallel within a stream strip or tile 
     """
-    outputs = []
-    for mtd in metadatas:
-        outputs.append( numpy.zeros(shape = (mtd["count"], mtd["height"], mtd["width"]),
-                                    dtype = mtd["dtype"]) )
 
-    return outputs
+    eo_shared_inst = eosh.EOShared(virtual_path=inputs[0])
+    profile = eo_shared_inst.get_profile()
 
-def default_reduce(outputs: list, 
-                   chunk_output_buffers: list, 
-                   strip: eotools.MpStrip) -> None:
-    """ Fill the outputs buffer with the results provided by the map filter from a strip """
-    for c in range(len(chunk_output_buffers)):
-        outputs[c][:, strip.start_y: strip.end_y + 1,:] = chunk_output_buffers[c][:,:,:]
+    image_width = int(profile['width'])
+    image_height = int(profile['height'])
 
-def execute_map_filter_n_images(map_filter: Callable,
-                                map_params: dict,
-                                input_vpaths: list,
-                                s: eotools.MpStrip) -> list :
+    eo_shared_inst.close()
 
-    """ This method maps the filter on the input virtual paths and return a list of output buffers """
-    eo_shared_instances = [ eosh.EOShared(input_vpath) for input_vpath in input_vpaths ]
+    if tile_mode:
+        
+        nb_tiles_x: int = 0
+        nb_tiles_y: int = 0
+        end_x: int = 0
+        start_y: int = 0
+        end_y: int = 0
+        top_margin: int = 0
+        right_margin: int = 0
+        bottom_margin: int = 0
+        left_margin: int = 0
 
-    input_buffers = [ eo_shared_instances[i].get_array(strip=s) for i in range(len(input_vpaths)) ]
+        # Force to make square tiles (except the last one unfortunately)
+        nb_pixels_per_worker: int = (image_width * image_height) // nb_workers
+        tile_size = int( math.sqrt(nb_pixels_per_worker) )
+        nb_tiles_x = image_width // tile_size
+        nb_tiles_y = image_height // tile_size
 
-    output_buffers = map_filter( input_buffers, map_params )
+        strips: list = []
 
-    for eo_shared_inst in eo_shared_instances:
-        eo_shared_inst.close()
+        for ty in range(nb_tiles_y):
+
+            for tx in range(nb_tiles_x):
+
+                # Determine the stable and unstable boundaries of the tile
+                start_x = tx * tile_size
+                start_y = ty * tile_size
+                end_x = min((tx+1)* tile_size - 1, image_width - 1)
+                end_y = min((ty+1)* tile_size - 1, image_height - 1)
+                top_margin = stable_margin if start_y - stable_margin >= 0 else start_y
+                left_margin = stable_margin if start_x - stable_margin >= 0 else start_x
+                bottom_margin = stable_margin if end_y + stable_margin <= image_height - 1 else image_height - 1 - end_y
+                right_margin = stable_margin if end_x + stable_margin <= image_width - 1 else image_width - 1 - end_x
+                
+                strips.append(eotools.MpTile(start_x = start_x, 
+                                             start_y = start_y, 
+                                             end_x = end_x, 
+                                             end_y = end_y, 
+                                             top_margin = top_margin,
+                                             right_margin=right_margin, 
+                                             bottom_margin = bottom_margin,
+                                             left_margin = left_margin))
+        
+        return strips
+
+    else:
+        return compute_mp_strips(image_height = image_height, 
+                                 image_width = image_width, 
+                                 nb_workers = nb_workers, 
+                                 stable_margin = stable_margin)
+
+
+def default_generate_output_profiles(input_profiles: list) -> list:
+    """
+        This method makes a deep copy of the input profiles 
+    """
+    return [ copy.deepcopy(in_profile) for input_profile in input_profiles ]
+
+def allocate_outputs(profiles: list,
+                     context_manager: eom.EOContextManager) -> list:
+    """
+        Given a list of profiles, this method creates
+        shared memory instances of the outputs
+    """
+
+    output_eoshared_instances: list = [ eosh.EOShared() for i in range(len(profiles)) ]
+
+    for i in range(len(profiles)):
+        output_eoshared_instances[i].create_array(profile = profiles[i])
+        context_manager.shared_resources[output_eoshared_instances[i].virtual_path] = output_eoshared_instances[i]
+
+    return output_eoshared_instances
+
+
+def execute_filter_n_images(image_filter: Callable,
+                            filter_parameters: dict,
+                            inputs: list,
+                            tile: eotools.MpTile) -> list:
     
-    # Extract the stable area for each output buffer
+    """
+        This method execute the filter on the inputs and then extract the stable
+        area from the resulting outputs before returning them.
+    """
+
+    # Create the input shared instances
+    input_eoshareds = [ eosh.EOShared(virtual_path=v_path) for v_path in inputs ]
+
+    # Get references to input numpy array buffers
+    input_buffers = [ ineosh.get_array(tile=tile) for ineosh in input_eoshareds ]
+
+    output_buffers = image_filter(input_buffers, filter_parameters)
+
+    stable_start_x: int = None
     stable_start_y: int = None
+    stable_end_x: int = None
     stable_end_y: int = None
+
     for i in range(len(output_buffers)):
-        # Extract the stable area
-        stable_start_y = s.top_margin
-        stable_end_y = stable_start_y + s.end_y - s.start_y + 1
-        output_buffers[i] = output_buffers[i][:, stable_start_y:stable_end_y, :]
+        stable_start_x = tile.left_margin
+        stable_start_y = tile.top_margin
+        stable_end_x = stable_start_x + tile.end_x - tile.start_x + 1
+        stable_end_y = stable_start_y + tile.end_y - tile.start_y + 1
+        output_buffers[i] = output_buffers[i][:, stable_start_y:stable_end_y, stable_start_x:stable_end_x]
+
+    # Close the input shared instances
+    for i in input_eoshareds:
+        i.close()
     
-    return output_buffers, s
+    return output_buffers, tile
+
+# def default_reduce(outputs: list, 
+#                    chunk_output_buffers: list, 
+#                    strip: eotools.MpStrip) -> None:
+#     """ Fill the outputs buffer with the results provided by the map filter from a strip """
+#     for c in range(len(chunk_output_buffers)):
+#         outputs[c][:, strip.start_y: strip.end_y + 1,:] = chunk_output_buffers[c][:,:,:]
 
 def n_images_to_m_images_filter(inputs: list = None, 
                                 image_filter: Callable = None,
-                                image_parameters: dict = None,
+                                filter_parameters: dict = None,
                                 generate_output_profiles: Callable = None,
                                 concatenate_filter: Callable = None,
                                 stable_margin: int = None,
@@ -123,17 +201,54 @@ def n_images_to_m_images_filter(inputs: list = None,
         similar to the good old map/reduce
 
         image_filter is processed in parallel
+
+        generate_output_profiles is a callable taking as input a list of rasterio profiles and the dictionnary
+        filter_parameters and returning a list of output profiles. 
+        This callable is used by EOScale to allocate new shared images given their profile. It determines the value m
+        of the n_image_to_m_image executor.
+
         concatenate_filter is processed by the master node to aggregate results
 
         Strong hypothesis: all input image are in the same geometry and have the same size
     """
+
+    if len(inputs) < 1:
+        raise ValueError("At least one input image must be given.")
     
     # compute the strips
-    strips = compute_mp_strips(input_vpath = input_vpaths[0],
-                               stable_margin = stable_margin,
-                               nb_workers = nb_workers)
+    tiles = compute_mp_tiles(inputs = inputs,
+                             stable_margin = stable_margin,
+                             nb_workers = context_manager.nb_workers,
+                             tile_mode = context_manager.tile_mode)
+    
 
-    pass
+    # Call the generate output profile callable. Use the default one
+    # if the developper did not assign one
+    output_profiles: list = []
+    if generate_output_profiles is None:
+        for key in inputs:
+            output_profiles.append( copy.deepcopy(context_manager.shared_resources[key].get_profile() ) )    
+    else:
+        copied_input_mtds: list = []
+        for key in inputs:
+            copied_input_mtds.append( copy.deepcopy(context_manager.shared_resources[key].get_profile()) )
+        output_profiles = generate_output_profiles( copied_input_mtds, image_parameters)
+
+    # Allocate and share the outputs
+    output_eoshareds = allocate_outputs(profiles = output_profiles,
+                                        context_manager = context_manager)
+    
+    # Multi processing execution
+    with concurrent.futures.ProcessPoolExecutor(max_workers=context_manager.nb_workers) as executor:
+        futures = { executor.submit(execute_filter_n_images(image_filter,
+                                                            filter_parameters,
+                                                            inputs,
+                                                            tile) for tile in tiles }
+
+    # Close output shared instances
+    for o in output_eoshareds:
+        o.close()
+
 
 # def n_images_to_m_images_filter(input_vpaths: list = None,
 #                                 map_filter: Callable = None,

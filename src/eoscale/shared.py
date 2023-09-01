@@ -4,6 +4,7 @@ import numpy
 import uuid
 import os
 import json
+import copy
 import eoscale.utils as eoutils
 
 EOSHARED_PREFIX: str = "eoshared"
@@ -11,15 +12,14 @@ EOSHARED_MTD: str = "metadata"
 
 class EOShared:
 
-    def __init_(self, 
-                virtual_path: str = None):
+    def __init__(self, virtual_path: str = None):
         """ """
         self.shared_array_memory = None
         self.shared_metadata_memory = None
         self.virtual_path: str = None
 
         if virtual_path is not None:
-            pass
+            self._open_from_virtual_path(virtual_path = virtual_path)
     
     def _extract_from_vpath(self) -> tuple:
         """
@@ -35,7 +35,7 @@ class EOShared:
 
         self.virtual_path = virtual_path
         
-        resource_key, mtd_len = self.extract_from_vpath()
+        resource_key, mtd_len = self._extract_from_vpath()
 
         self.shared_array_memory = shared_memory.SharedMemory(name=resource_key, 
                                                               create=False)
@@ -45,6 +45,35 @@ class EOShared:
 
     def _build_virtual_path(self, key: str, mtd_len: str) -> None:
         self.virtual_path = EOSHARED_PREFIX + "/" + mtd_len + "/" + key
+    
+
+    def create_array(self, profile: dict):
+        """
+            Allocate array 
+        """
+        # Shared key is made unique
+        # this property is awesome since it allows the communication between parallel tasks
+        resource_key: str = str(uuid.uuid4())
+
+        # Compute the number of bytes of this array
+        d_size = numpy.dtype(profile["dtype"]).itemsize * profile["count"] * profile["height"] * profile["width"]
+
+        # Create a shared memory instance of it
+        # shared memory must remain open to keep the memory view
+        self.shared_array_memory = shared_memory.SharedMemory(create=True, 
+                                                              size=d_size, 
+                                                              name=resource_key)
+
+        # Encode and compute the number of bytes of the metadata
+        encoded_metadata = json.dumps(eoutils.rasterio_profile_to_dict(profile)).encode()
+        mtd_size: int = len(encoded_metadata)
+        self.shared_metadata_memory = shared_memory.SharedMemory(create=True, 
+                                                                 size=mtd_size, 
+                                                                 name=resource_key + EOSHARED_MTD)
+        self.shared_metadata_memory.buf[:] = encoded_metadata[:]
+
+        # Create the virtual path to these shared resources
+        self._build_virtual_path(mtd_len=str(mtd_size), key = resource_key)
 
 
     def create_from_raster_path(self,
@@ -84,14 +113,48 @@ class EOShared:
 
             # Create the virtual path to these shared resources
             self._build_virtual_path(mtd_len=str(mtd_size), key = resource_key)
+
+    def get_profile(self) -> rasterio.DatasetReader.profile:
+        """
+            Return a copy of the rasterio profile
+        """
+        resource_key, mtd_len = self._extract_from_vpath()
+        encoded_mtd = bytearray(int(mtd_len))
+        encoded_mtd[:] = self.shared_metadata_memory.buf[:]
+        return copy.deepcopy(eoutils.dict_to_rasterio_profile(json.loads(encoded_mtd.decode())))
+
+    def get_array(self, 
+                  tile: eoutils.MpTile = None) -> numpy.ndarray:
+
+        """            
+            Return a memory view of the array or a subset of it if a tile is given
+        """
+        profile = self.get_profile()
+        array_shape = (profile['count'], profile['height'], profile['width'])
+
+        if tile is None:
+            return numpy.ndarray(array_shape,
+                                 dtype=profile['dtype'],
+                                 buffer=self.shared_array_memory.buf)
+        else:
+            start_y = tile.start_y - tile.top_margin
+            end_y = tile.end_y + tile.bottom_margin + 1
+            start_x = tile.start_x - tile.left_margin
+            end_x = tile.end_x + tile.right_margin + 1
+            return numpy.ndarray(array_shape,
+                                 dtype=metadata['dtype'],
+                                 buffer=self.shared_array_memory.buf)[:, start_y:end_y, start_x:end_x]
     
     def close(self):
         """ 
             A close does not mean release from memory. Must be called by a process once it has finished
             with this resource.
         """
-        self.shared_array_memory.close()
-        self.shared_metadata_memory.close()
+        if self.shared_array_memory is not None:
+            self.shared_array_memory.close()
+        
+        if self.shared_metadata_memory is not None:
+            self.shared_metadata_memory.close()
     
     def release(self):
     

@@ -3,9 +3,11 @@ import eoscale.shared as eosh
 class EOContextManager:
 
     def __init__(self, 
-                 nb_workers:int):
+                 nb_workers:int,
+                 tile_mode: bool = False):
 
         self.nb_workers = nb_workers
+        self.tile_mode = tile_mode
         self.shared_resources: dict = dict()
     
     # Private methods

@@ -1,7 +1,7 @@
 import rasterio
 from collections import namedtuple
 
-MpStrip = namedtuple('MpStrip', ["start_x", "start_y", "end_x", "end_y", "top_margin", "bottom_margin"])
+MpTile = namedtuple('MpTile', ["start_x", "start_y", "end_x", "end_y", "top_margin", "right_margin", "left_margin", "bottom_margin"])
 
 def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
     """
