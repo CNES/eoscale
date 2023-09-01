@@ -158,10 +158,10 @@ def allocate_outputs(profiles: list,
     return output_eoshared_instances
 
 
-def execute_filter_n_images(image_filter: Callable,
-                            filter_parameters: dict,
-                            inputs: list,
-                            tile: eotools.MpTile) -> tuple:
+def execute_filter_n_images_to_n_images(image_filter: Callable,
+                                        filter_parameters: dict,
+                                        inputs: list,
+                                        tile: eotools.MpTile) -> tuple:
     
     """
         This method execute the filter on the inputs and then extract the stable
@@ -225,7 +225,7 @@ def n_images_to_m_images_filter(inputs: list = None,
                                 concatenate_filter: Callable = None,
                                 stable_margin: int = 0,
                                 context_manager: eom.EOContextManager = None,
-                                filter_desc: str = "Processing...") -> list:
+                                filter_desc: str = "N Images to M images MultiProcessing...") -> list:
     """
         Generic paradigm to process n images providing m resulting images using a paradigm
         similar to the good old map/reduce
@@ -244,6 +244,12 @@ def n_images_to_m_images_filter(inputs: list = None,
 
     if len(inputs) < 1:
         raise ValueError("At least one input image must be given.")
+    
+    if image_filter is None:
+        raise ValueError("A filter must be set !")
+
+    if context_manager is None:
+        raise ValueError("The EOScale Context Manager must be given !")
 
     # Sometimes filter does not need parameters    
     if filter_parameters is None:
@@ -279,7 +285,7 @@ def n_images_to_m_images_filter(inputs: list = None,
     # For debug, comment this section below in production
     # for tile in tiles:
     #     print("process tile ", tile)
-    #     chunk_output_buffers, tile = execute_filter_n_images(image_filter,
+    #     chunk_output_buffers, tile = execute_filter_n_images_to_n_images(image_filter,
     #                                                         filter_parameters,
     #                                                         inputs,
     #                                                         tile)
@@ -288,7 +294,7 @@ def n_images_to_m_images_filter(inputs: list = None,
     # # Multi processing execution
     with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles))) as executor:
 
-        futures = { executor.submit(execute_filter_n_images,
+        futures = { executor.submit(execute_filter_n_images_to_n_images,
                                     image_filter,
                                     filter_parameters,
                                     inputs,
@@ -303,7 +309,95 @@ def n_images_to_m_images_filter(inputs: list = None,
     
     return output_virtual_paths
 
+def execute_filter_n_images_to_m_scalars(image_filter: Callable,
+                                         filter_parameters: dict,
+                                         inputs: list,
+                                         tile: eotools.MpTile) -> tuple:
+    
+    """
+        This method execute the filter on the inputs and then extract the stable
+        area from the resulting outputs before returning them.
+    """
+
+    # Create the input shared instances
+    input_eoshareds = [ eosh.EOShared(virtual_path=v_path) for v_path in inputs ]
+
+    # Get references to input numpy array buffers
+    input_buffers = [ ineosh.get_array(tile=tile) for ineosh in input_eoshareds ]
+    input_profiles = [ copy.deepcopy(ineosh.get_profile()) for ineosh in input_eoshareds ]
+
+    output_scalars = image_filter(input_buffers, input_profiles, filter_parameters)
+
+    if not isinstance(output_scalars, list):
+        output_scalars = [output_scalars]
+
+    # Close the input shared instances
+    for i in input_eoshareds:
+        i.close()
+    
+    return output_scalars, tile
+
+def n_images_to_m_scalars(inputs: list = None, 
+                          image_filter: Callable = None,
+                          filter_parameters: dict = None,
+                          nb_output_scalars: int = None,
+                          concatenate_filter: Callable = None,
+                          context_manager: eom.EOContextManager = None,
+                          filter_desc: str = "N Images to M Scalars MultiProcessing...") -> list:
+    """
+        Generic paradigm to process n images providing m resulting scalars using a paradigm
+        similar to the good old map/reduce
+
+        image_filter is processed in parallel
+
+        concatenate_filter is processed by the master node to aggregate results
+
+        Strong hypothesis: all input image are in the same geometry and have the same size 
+    """
+
+    if len(inputs) < 1:
+        raise ValueError("At least one input image must be given.")
+    
+    if image_filter is None:
+        raise ValueError("A filter must be set !")
+    
+    if concatenate_filter is None:
+        raise ValueError("A concatenate filter must be set !")
+    
+    if nb_output_scalars is None:
+        raise ValueError("The number of output scalars must be set (integer value expected) !")
+    
+    if context_manager is None:
+        raise ValueError("The EOScale Context Manager must be given !")
+
+    # Sometimes filter does not need parameters    
+    if filter_parameters is None:
+        filter_parameters = dict()
+    
+    # compute the strips
+    tiles = compute_mp_tiles(inputs = inputs,
+                             stable_margin = 0,
+                             nb_workers = context_manager.nb_workers,
+                             tile_mode = context_manager.tile_mode)
+
+    # Initialize the output scalars
+    output_scalars : list = [ 0.0 for i in range(nb_output_scalars) ]
+
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles))) as executor:
+
+        futures = { executor.submit(execute_filter_n_images_to_m_scalars,
+                                    image_filter,
+                                    filter_parameters,
+                                    inputs,
+                                    tile) for tile in tiles }
+        
+        for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=filter_desc):
+
+            chunk_output_scalars, tile = future.result()
+            concatenate_filter(output_scalars, chunk_output_scalars, tile )
 
     
+    return output_scalars
 
         
