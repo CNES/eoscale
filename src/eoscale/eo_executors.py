@@ -341,6 +341,7 @@ def n_images_to_m_scalars(inputs: list = None,
                           image_filter: Callable = None,
                           filter_parameters: dict = None,
                           nb_output_scalars: int = None,
+                          output_scalars: list = None,
                           concatenate_filter: Callable = None,
                           context_manager: eom.EOContextManager = None,
                           filter_desc: str = "N Images to M Scalars MultiProcessing...") -> list:
@@ -380,8 +381,9 @@ def n_images_to_m_scalars(inputs: list = None,
                              nb_workers = context_manager.nb_workers,
                              tile_mode = context_manager.tile_mode)
 
-    # Initialize the output scalars
-    output_scalars : list = [ 0.0 for i in range(nb_output_scalars) ]
+    # Initialize the output scalars if the user doesn't provide it 
+    if output_scalars is None:
+        output_scalars : list = [ 0.0 for i in range(nb_output_scalars) ]
 
 
     with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles))) as executor:
