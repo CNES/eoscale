@@ -12,6 +12,13 @@ class EOContextManager:
         self.tile_mode = tile_mode
         self.shared_resources: dict = dict()
     
+    def __enter__(self):
+        self.start()
+        return self
+    
+    def  __exit__(self, exc_type, exc_value, traceback):
+        self.end()
+
     # Private methods
 
     def _release_all(self):
