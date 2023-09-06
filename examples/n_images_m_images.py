@@ -67,67 +67,64 @@ if __name__ == "__main__":
 
 
     #############################################################################################################################
-    eoscale_manager = eom.EOContextManager(nb_workers = nb_workers, 
-                                           tile_mode = tile_mode)
 
-    eoscale_manager.start()
-    #############################################################################################################################
-
-    img_1 = eoscale_manager.open_raster(raster_path = input_image_path)
-
-    ### NoData mask filter
-
-    nodata_outputs = eoexe.n_images_to_m_images_filter(inputs = [img_1],
-                                                       image_filter = nodata_filter,
-                                                       generate_output_profiles = nodata_profile,
-                                                       context_manager = eoscale_manager,
-                                                       filter_desc= "Nodata processing...")
-    
-    # Flush the mask to disk
-    eoscale_manager.write(key = nodata_outputs[0], img_path = output_nodata_mask)
-
-    ### Fill no data filter
-
-    fillnodata_parameters: dict = {
-        "max_search_distance": 100.0,
-        "smoothing_iterations": 0
-    }
-    fillnodata_margin: int = 100
+    with eom.EOContextManager(nb_workers = nb_workers, tile_mode = tile_mode) as eoscale_manager:
 
 
-    fillnodata_outputs = eoexe.n_images_to_m_images_filter(inputs = [img_1, nodata_outputs[0]],
-                                                           image_filter = fillnodata_filter,
-                                                           filter_parameters = fillnodata_parameters,
-                                                           generate_output_profiles = fillnodata_profile,
+        img_1 = eoscale_manager.open_raster(raster_path = input_image_path)
+
+        ### NoData mask filter
+
+        nodata_outputs = eoexe.n_images_to_m_images_filter(inputs = [img_1],
+                                                           image_filter = nodata_filter,
+                                                           generate_output_profiles = nodata_profile,
                                                            context_manager = eoscale_manager,
-                                                           stable_margin = fillnodata_margin,
-                                                           filter_desc= "Fill nodata processing...")
-    
-    ### We do not need to have the input image in memory and neither the mask for the next filter
-    ### We can therefore ask the context manager to release them
-    eoscale_manager.release(key = img_1)
-    eoscale_manager.release(key = nodata_outputs[0])
+                                                           filter_desc= "Nodata processing...")
+        
+        # Flush the mask to disk
+        eoscale_manager.write(key = nodata_outputs[0], img_path = output_nodata_mask)
 
-    # Flush the filled dsm to disk
-    eoscale_manager.write(key = fillnodata_outputs[0], img_path = output_filled_dsm)
+        ### Fill no data filter
 
-    ### Uniform filter
-    uniform_parameters: dict = {
-        "size": 3
-    }
-    uniform_margin : int = 1
+        fillnodata_parameters: dict = {
+            "max_search_distance": 100.0,
+            "smoothing_iterations": 0
+        }
+        fillnodata_margin: int = 100
 
-    outputs = eoexe.n_images_to_m_images_filter(inputs = [fillnodata_outputs[0]], 
-                                                image_filter = uniform_filter,
-                                                filter_parameters = uniform_parameters,
-                                                stable_margin = uniform_margin,
-                                                context_manager = eoscale_manager,
-                                                filter_desc= "Uniform filter processing...")
-    
-    # Flush the smooth filter to disk
-    eoscale_manager.write(key = outputs[0], img_path = output_image_path)
+
+        fillnodata_outputs = eoexe.n_images_to_m_images_filter(inputs = [img_1, nodata_outputs[0]],
+                                                            image_filter = fillnodata_filter,
+                                                            filter_parameters = fillnodata_parameters,
+                                                            generate_output_profiles = fillnodata_profile,
+                                                            context_manager = eoscale_manager,
+                                                            stable_margin = fillnodata_margin,
+                                                            filter_desc= "Fill nodata processing...")
+        
+        ### We do not need to have the input image in memory and neither the mask for the next filter
+        ### We can therefore ask the context manager to release them
+        eoscale_manager.release(key = img_1)
+        eoscale_manager.release(key = nodata_outputs[0])
+
+        # Flush the filled dsm to disk
+        eoscale_manager.write(key = fillnodata_outputs[0], img_path = output_filled_dsm)
+
+        ### Uniform filter
+        uniform_parameters: dict = {
+            "size": 3
+        }
+        uniform_margin : int = 1
+
+        outputs = eoexe.n_images_to_m_images_filter(inputs = [fillnodata_outputs[0]], 
+                                                    image_filter = uniform_filter,
+                                                    filter_parameters = uniform_parameters,
+                                                    stable_margin = uniform_margin,
+                                                    context_manager = eoscale_manager,
+                                                    filter_desc= "Uniform filter processing...")
+        
+        # Flush the smooth filter to disk
+        eoscale_manager.write(key = outputs[0], img_path = output_image_path)
 
     #############################################################################################################################
     # All shared resources are automatically released
-    eoscale_manager.end()
 

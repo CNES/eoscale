@@ -39,32 +39,28 @@ if __name__ == "__main__":
     nb_workers: int = 8
     tile_mode: bool = True
 
-    eoscale_manager = eom.EOContextManager(nb_workers = nb_workers, 
-                                           tile_mode = tile_mode)
+    with eom.EOContextManager(nb_workers = nb_workers, tile_mode = tile_mode) as eoscale_manager:
 
-    eoscale_manager.start()
+      dsm = eoscale_manager.open_raster(raster_path = input_image_path)
 
-    dsm = eoscale_manager.open_raster(raster_path = input_image_path)
+      [dsm_min, dsm_max] = eoexe.n_images_to_m_scalars(inputs = [dsm],
+                                            image_filter = min_max_filter,
+                                            nb_output_scalars = 2,
+                                            concatenate_filter = min_max_concatenate,
+                                            context_manager = eoscale_manager,
+                                            filter_desc= "Min/Max value processing...")
 
-    [dsm_min, dsm_max] = eoexe.n_images_to_m_scalars(inputs = [dsm],
-                                          image_filter = min_max_filter,
-                                          nb_output_scalars = 2,
-                                          concatenate_filter = min_max_concatenate,
+      dict_bins = {'min_Z' : dsm_min, 'nb_bins' : int((dsm_max - dsm_min)/precision_alti)}
+      stats = eoexe.n_images_to_m_scalars(inputs = [dsm],
+                                          filter_parameters = dict_bins,
+                                          image_filter = hist_filter,
+                                          nb_output_scalars = 1,
+                                          output_scalars = [np.zeros(dict_bins["nb_bins"], dtype=np.float64)],
+                                          concatenate_filter = hist_concatenate,
                                           context_manager = eoscale_manager,
-                                          filter_desc= "Min/Max value processing...")
+                                          filter_desc= "Compute histogram...")
 
-    dict_bins = {'min_Z' : dsm_min, 'nb_bins' : int((dsm_max - dsm_min)/precision_alti)}
-    stats = eoexe.n_images_to_m_scalars(inputs = [dsm],
-                                        filter_parameters = dict_bins,
-                                        image_filter = hist_filter,
-                                        nb_output_scalars = 1,
-                                        output_scalars = [np.zeros(dict_bins["nb_bins"], dtype=np.float64)],
-                                        concatenate_filter = hist_concatenate,
-                                        context_manager = eoscale_manager,
-                                        filter_desc= "Compute histogram...")
-
-    np.save(output_path, stats[0])
-    eoscale_manager.end()
+      np.save(output_path, stats[0])
 
 
 

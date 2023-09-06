@@ -28,23 +28,18 @@ if __name__ == "__main__":
     tile_mode: bool = True
 
     #############################################################################################################################
-    eoscale_manager = eom.EOContextManager(nb_workers = nb_workers, 
-                                           tile_mode = tile_mode)
+    with eom.EOContextManager(nb_workers = nb_workers, tile_mode = tile_mode) as eoscale_manager:
 
-    eoscale_manager.start()
-    #############################################################################################################################
+        img_1 = eoscale_manager.open_raster(raster_path = input_img_path)
 
-    img_1 = eoscale_manager.open_raster(raster_path = input_img_path)
+        stats = eoexe.n_images_to_m_scalars(inputs = [img_1],
+                                            image_filter = stats_filter,
+                                            nb_output_scalars = 2,
+                                            concatenate_filter = stats_concatenate,
+                                            context_manager = eoscale_manager,
+                                            filter_desc= "Min value processing...")
 
-    stats = eoexe.n_images_to_m_scalars(inputs = [img_1],
-                                          image_filter = stats_filter,
-                                          nb_output_scalars = 2,
-                                          concatenate_filter = stats_concatenate,
-                                          context_manager = eoscale_manager,
-                                          filter_desc= "Min value processing...")
-
-    print(stats[0], stats[1])
+        print(stats[0], stats[1])
 
     #############################################################################################################################
     # All shared resources are automatically released
-    eoscale_manager.end()
