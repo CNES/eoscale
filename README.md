@@ -166,5 +166,20 @@ Just clone this repo and pip install it ;)
 
 The only requirement is to use a version of Python greater or equal than 3.8
 
+## Want to contribute ?
+
+Here’s how it generally works:
+
+
+1. Clone the project.
+2. Create a topic branch from master.
+3. Make some commits to improve the project.
+4. Open a Merge Request when your are done.
+5. The project owners will examine your features and corrections.
+6. Discussion with the project owners about those commits
+7. The project owners merge to master and close the merge request.
+
+Actual project owner: [Pierre Lassalle](pierre.lassalle@cnes.fr)
+
 
 
