@@ -157,6 +157,40 @@ def allocate_outputs(profiles: list,
 
     return output_eoshared_instances
 
+def in_place_sequential_image_filter(inputs: list = None, 
+                                     image_filter: Callable = None,
+                                     filter_parameters: dict = None,
+                                     context_manager: eom.EOContextManager = None,
+                                     filter_desc: str = "In Place Filter processing...") -> list:
+    """
+        This executor simply runs a sequential filter on the inputs that modifies directly the input
+        shared memories.
+    """
+    # Create the input shared instances
+    input_eoshareds = [ eosh.EOShared(virtual_path=v_path) for v_path in inputs ]
+
+    # Get references to input numpy array buffers
+    input_buffers = [ ineosh.get_array() for ineosh in input_eoshareds ]
+    input_profiles = [ copy.deepcopy(ineosh.get_profile()) for ineosh in input_eoshareds ]
+
+    # Run the inplace image filter
+    print(filter_desc)
+    image_filter(input_buffers, input_profiles, filter_parameters)
+
+    # Close the input shared instances
+    for i in input_eoshareds:
+        i.close()
+
+    # The user may have modified the profile of each buffer, then the encoded length
+    # of them may have changed, we therefore need to modify the size of the shared
+    # resources.
+    idx: int = 0
+    updated_inputs: list = []
+    for v_path in inputs:
+        updated_inputs.append( context_manager.update_profile(key = v_path, profile = input_profiles[idx]) )
+        idx += 1
+
+    return updated_inputs
 
 def execute_filter_n_images_to_n_images(image_filter: Callable,
                                         filter_parameters: dict,
@@ -164,7 +198,7 @@ def execute_filter_n_images_to_n_images(image_filter: Callable,
                                         tile: eotools.MpTile) -> tuple:
     
     """
-        This method execute the filter on the inputs and then extract the stable
+        This method execute the filter on the inputs and then extract the stable 
         area from the resulting outputs before returning them.
     """
 

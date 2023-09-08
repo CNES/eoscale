@@ -1,7 +1,6 @@
 import numpy
 from rasterio.fill import fillnodata
 
-import eoscale.shared as eosh
 import eoscale.manager as eom
 import eoscale.eo_executors as eoexe
 

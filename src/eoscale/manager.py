@@ -41,6 +41,20 @@ class EOContextManager:
         self.shared_resources[new_shared_resource.virtual_path] = new_shared_resource
         return new_shared_resource.virtual_path
     
+    def create_image(self, profile: dict) -> str:
+        """
+            Given a profile with at least the following keys:
+            count
+            height
+            width
+            dtype
+            this method allocates a shared image and its metadata 
+        """
+        eoshared_instance = eosh.EOShared()
+        eoshared_instance.create_array(profile = profile)
+        self.shared_resources[eoshared_instance.virtual_path] = eoshared_instance
+        return eoshared_instance.virtual_path
+    
     def release(self, key: str):
         """
             Release definitely the corresponding shared resource
@@ -60,6 +74,17 @@ class EOContextManager:
                 out_dataset.write(img_buffer)
         else:
             print(f"WARNING: the key {key} to write is not known by the context manager")
+    
+    def update_profile(self, key: str, profile: dict) -> str:
+        """
+            This method update the profile of a given key and returns the new key
+        """
+        tmp_value = self.shared_resources[key]
+        del self.shared_resources[key]
+        tmp_value._release_profile()
+        new_key: str = tmp_value._update_profile(profile)
+        self.shared_resources[new_key] = tmp_value
+        return new_key
     
     def start(self):
         if len(self.shared_resources) > 0:

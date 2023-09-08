@@ -1,6 +1,5 @@
 import numpy
 
-import eoscale.shared as eosh
 import eoscale.manager as eom
 import eoscale.eo_executors as eoexe
 
