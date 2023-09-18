@@ -69,7 +69,7 @@ class EOShared:
         resource_key: str = str(uuid.uuid4())
 
         # Compute the number of bytes of this array
-        d_size = numpy.dtype(profile["dtype"]).itemsize * profile["count"] * profile["height"] * profile["height"]
+        d_size = numpy.dtype(profile["dtype"]).itemsize * profile["count"] * profile["height"] * profile["width"]
 
         # Create a shared memory instance of it
         # shared memory must remain open to keep the memory view
@@ -77,7 +77,7 @@ class EOShared:
                                                               size=d_size, 
                                                               name=resource_key)
         
-        big_array = numpy.ndarray(shape=(profile["count"]  * profile["height"] * profile["height"]), 
+        big_array = numpy.ndarray(shape=(profile["count"]  * profile["height"] * profile["width"]), 
                                          dtype= numpy.dtype(profile["dtype"]), 
                                          buffer=self.shared_array_memory.buf)
         big_array.fill(0)
@@ -188,3 +188,4 @@ class EOShared:
             self.shared_array_memory = None
         
         self._release_profile()
+
