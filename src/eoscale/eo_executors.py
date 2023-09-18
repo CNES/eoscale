@@ -9,6 +9,11 @@ import eoscale.shared as eosh
 import eoscale.utils as eotools
 import eoscale.manager as eom
 
+def isPowerOfTwo(x: int):
+    # First x in the below expression
+    # is for the case when x is 0
+    return (x and (not(x & (x - 1))) )
+
 def compute_mp_strips(image_height: int,
                       image_width: int,
                       nb_workers: int,
@@ -56,27 +61,27 @@ def compute_mp_strips(image_height: int,
 def compute_mp_tiles(inputs: list,
                      stable_margin: int,
                      nb_workers: int,
-                     tile_mode: bool):
+                     tile_mode: bool,
+                     context_manager: eom.EOContextManager):
     """
         Given an input eoscale virtual path an nb_workers,
         this method computes the list of strips that will
         be processed in parallel within a stream strip or tile 
     """
 
-    eo_shared_inst = eosh.EOShared(virtual_path=inputs[0])
-    profile = eo_shared_inst.get_profile()
-
-    image_width = int(profile['width'])
-    image_height = int(profile['height'])
-
-    # First we check that all input images have the same dimension
-    if len(inputs) > 1:
-        for i in range(1, len(inputs)):
-            other_profile = eosh.EOShared(virtual_path=inputs[i]).get_profile()
-            if other_profile['width'] != image_width or other_profile['height'] != image_height:
+    img_idx : int = 0
+    image_width: int = None
+    image_height: int = None
+    for img_key in inputs:
+        # Warning, the key can be either a memory view or a shared resource key
+        arr = context_manager.get_array(key=img_key)
+        if img_idx < 1:
+            image_height = arr.shape[1]
+            image_width = arr.shape[2]
+        else:
+            if image_width != arr.shape[2] or image_height != arr.shape[1]:
                 raise ValueError("ERROR: all input images must have the same width and the same height !")
-
-    eo_shared_inst.close()
+        img_idx += 1
 
     if tile_mode:
         
@@ -157,57 +162,23 @@ def allocate_outputs(profiles: list,
 
     return output_eoshared_instances
 
-def in_place_sequential_image_filter(inputs: list = None, 
-                                     image_filter: Callable = None,
-                                     filter_parameters: dict = None,
-                                     context_manager: eom.EOContextManager = None,
-                                     filter_desc: str = "In Place Filter processing...") -> list:
-    """
-        This executor simply runs a sequential filter on the inputs that modifies directly the input
-        shared memories.
-    """
-    # Create the input shared instances
-    input_eoshareds = [ eosh.EOShared(virtual_path=v_path) for v_path in inputs ]
-
-    # Get references to input numpy array buffers
-    input_buffers = [ ineosh.get_array() for ineosh in input_eoshareds ]
-    input_profiles = [ copy.deepcopy(ineosh.get_profile()) for ineosh in input_eoshareds ]
-
-    # Run the inplace image filter
-    print(filter_desc)
-    image_filter(input_buffers, input_profiles, filter_parameters)
-
-    # Close the input shared instances
-    for i in input_eoshareds:
-        i.close()
-
-    # The user may have modified the profile of each buffer, then the encoded length
-    # of them may have changed, we therefore need to modify the size of the shared
-    # resources.
-    idx: int = 0
-    updated_inputs: list = []
-    for v_path in inputs:
-        updated_inputs.append( context_manager.update_profile(key = v_path, profile = input_profiles[idx]) )
-        idx += 1
-
-    return updated_inputs
-
 def execute_filter_n_images_to_n_images(image_filter: Callable,
                                         filter_parameters: dict,
                                         inputs: list,
-                                        tile: eotools.MpTile) -> tuple:
+                                        tile: eotools.MpTile,
+                                        context_manager: eom.EOContextManager) -> tuple:
     
     """
         This method execute the filter on the inputs and then extract the stable 
         area from the resulting outputs before returning them.
     """
 
-    # Create the input shared instances
-    input_eoshareds = [ eosh.EOShared(virtual_path=v_path) for v_path in inputs ]
-
     # Get references to input numpy array buffers
-    input_buffers = [ ineosh.get_array(tile=tile) for ineosh in input_eoshareds ]
-    input_profiles = [ copy.deepcopy(ineosh.get_profile()) for ineosh in input_eoshareds ]
+    input_buffers = []
+    input_profiles = []
+    for i in range(len(inputs)):
+        input_buffers.append(context_manager.get_array(key=inputs[i], tile = tile))
+        input_profiles.append(context_manager.get_profile(key=inputs[i]))
 
     output_buffers = image_filter(input_buffers, input_profiles, filter_parameters)
 
@@ -238,10 +209,6 @@ def execute_filter_n_images_to_n_images(image_filter: Callable,
         stable_end_x = stable_start_x + tile.end_x - tile.start_x + 1
         stable_end_y = stable_start_y + tile.end_y - tile.start_y + 1
         output_buffers[i] = output_buffers[i][:, stable_start_y:stable_end_y, stable_start_x:stable_end_x]
-
-    # Close the input shared instances
-    for i in input_eoshareds:
-        i.close()
     
     return output_buffers, tile
 
@@ -293,7 +260,8 @@ def n_images_to_m_images_filter(inputs: list = None,
     tiles = compute_mp_tiles(inputs = inputs,
                              stable_margin = stable_margin,
                              nb_workers = context_manager.nb_workers,
-                             tile_mode = context_manager.tile_mode)
+                             tile_mode = context_manager.tile_mode,
+                             context_manager=context_manager)
     
 
     # Call the generate output profile callable. Use the default one
@@ -301,11 +269,11 @@ def n_images_to_m_images_filter(inputs: list = None,
     output_profiles: list = []
     if generate_output_profiles is None:
         for key in inputs:
-            output_profiles.append( copy.deepcopy(context_manager.shared_resources[key].get_profile() ) )    
+            output_profiles.append(context_manager.get_profile(key=key))    
     else:
         copied_input_mtds: list = []
         for key in inputs:
-            copied_input_mtds.append( copy.deepcopy(context_manager.shared_resources[key].get_profile()) )
+            copied_input_mtds.append(context_manager.get_profile(key=key))
         output_profiles = generate_output_profiles( copied_input_mtds, filter_parameters)
         if not isinstance(output_profiles, list):
             output_profiles = [output_profiles]
@@ -332,7 +300,8 @@ def n_images_to_m_images_filter(inputs: list = None,
                                     image_filter,
                                     filter_parameters,
                                     inputs,
-                                    tile) for tile in tiles }
+                                    tile,
+                                    context_manager) for tile in tiles }
         
         for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=filter_desc):
 
@@ -352,22 +321,17 @@ def execute_filter_n_images_to_m_scalars(image_filter: Callable,
         This method execute the filter on the inputs and then extract the stable
         area from the resulting outputs before returning them.
     """
-
-    # Create the input shared instances
-    input_eoshareds = [ eosh.EOShared(virtual_path=v_path) for v_path in inputs ]
-
     # Get references to input numpy array buffers
-    input_buffers = [ ineosh.get_array(tile=tile) for ineosh in input_eoshareds ]
-    input_profiles = [ copy.deepcopy(ineosh.get_profile()) for ineosh in input_eoshareds ]
+    input_buffers = []
+    input_profiles = []
+    for i in range(len(inputs)):
+        input_buffers.append(context_manager.get_array(key=inputs[i], tile = tile))
+        input_profiles.append(context_manager.get_profile(key=inputs[i]))
 
     output_scalars = image_filter(input_buffers, input_profiles, filter_parameters)
 
     if not isinstance(output_scalars, list):
         output_scalars = [output_scalars]
-
-    # Close the input shared instances
-    for i in input_eoshareds:
-        i.close()
     
     return output_scalars, tile
 
@@ -413,7 +377,8 @@ def n_images_to_m_scalars(inputs: list = None,
     tiles = compute_mp_tiles(inputs = inputs,
                              stable_margin = 0,
                              nb_workers = context_manager.nb_workers,
-                             tile_mode = context_manager.tile_mode)
+                             tile_mode = context_manager.tile_mode,
+                             context_manager=context_manager)
 
     # Initialize the output scalars if the user doesn't provide it 
     if output_scalars is None:

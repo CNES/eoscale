@@ -127,22 +127,23 @@ class EOShared:
 
         """            
             Return a memory view of the array or a subset of it if a tile is given
+            This has be done to be respect the dimension condition of the n_images_to_m_images filter.
         """
         profile = self.get_profile()
         array_shape = (profile['count'], profile['height'], profile['width'])
+        
+        arr = numpy.ndarray(array_shape,
+                            dtype=profile['dtype'],
+                            buffer=self.shared_array_memory.buf)
 
         if tile is None:
-            return numpy.ndarray(array_shape,
-                                 dtype=profile['dtype'],
-                                 buffer=self.shared_array_memory.buf)
+            return arr
         else:
             start_y = tile.start_y - tile.top_margin
             end_y = tile.end_y + tile.bottom_margin + 1
             start_x = tile.start_x - tile.left_margin
             end_x = tile.end_x + tile.right_margin + 1
-            return numpy.ndarray(array_shape,
-                                 dtype=profile['dtype'],
-                                 buffer=self.shared_array_memory.buf)[:, start_y:end_y, start_x:end_x]
+            return arr[:, start_y:end_y, start_x:end_x]
     
     def _update_profile(self, profile: dict) -> None:
         """ 

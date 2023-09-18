@@ -1,5 +1,9 @@
 import rasterio
+import uuid
+import numpy
+import copy
 
+import eoscale.utils as eoutils
 import eoscale.shared as eosh
 
 class EOContextManager:
@@ -11,6 +15,8 @@ class EOContextManager:
         self.nb_workers = nb_workers
         self.tile_mode = tile_mode
         self.shared_resources: dict = dict()
+        # Key is a unique memview key and value is a tuple (shared_resource_key, array subset, profile_subset)
+        self.shared_mem_views: dict = dict()
     
     def __enter__(self):
         self.start()
@@ -22,6 +28,8 @@ class EOContextManager:
     # Private methods
 
     def _release_all(self):
+
+        self.shared_mem_views = dict()
 
         for key in self.shared_resources:
             self.shared_resources[key].release()
@@ -55,10 +63,55 @@ class EOContextManager:
         self.shared_resources[eoshared_instance.virtual_path] = eoshared_instance
         return eoshared_instance.virtual_path
     
+    def create_memview(self, key: str, arr_subset: numpy.ndarray, arr_subset_profile: dict) -> str:
+        """
+            This method allows the developper to indicate a subset memory view of a shared resource he wants to use as input
+            of an executor.
+        """
+        mem_view_key: str = str(uuid.uuid4())
+        self.shared_mem_views[mem_view_key] = (key, arr_subset, arr_subset_profile)
+        return mem_view_key
+    
+    def get_array(self, key: str, tile: eoutils.MpTile = None) -> numpy.ndarray:
+        """
+            This method returns a memory view from the key given by the user.
+            This key can be a shared resource key or a memory view key 
+        """
+        if key in self.shared_mem_views:
+            if tile is None:
+                return self.shared_mem_views[key][1]
+            else:
+                start_y = tile.start_y - tile.top_margin
+                end_y = tile.end_y + tile.bottom_margin + 1
+                start_x = tile.start_x - tile.left_margin
+                end_x = tile.end_x + tile.right_margin + 1
+                return self.shared_mem_views[key][1][:, start_y:end_y, start_x:end_x]
+        else:
+            return self.shared_resources[key].get_array(tile = tile)
+    
+    def get_profile(self, key: str) -> dict:
+        """
+            This method returns a profile from the key given by the user.
+            This key can be a shared resource key or a memory view key
+        """
+        if key in self.shared_mem_views:
+            return copy.deepcopy(self.shared_mem_views[key][2])
+        else:
+            return self.shared_resources[key].get_profile()
+    
     def release(self, key: str):
         """
             Release definitely the corresponding shared resource
         """
+
+        mem_view_keys_to_remove: list = []
+        # Remove from the mem view dictionnary all the key related to the share resource key
+        for k in self.shared_mem_views:
+            if self.shared_mem_views[k][0] == key:
+                mem_view_keys_to_remove.append(k)
+        for k in mem_view_keys_to_remove:
+            del self.shared_mem_views[k]
+
         if key in self.shared_resources:
             self.shared_resources[key].release()
             del self.shared_resources[key]
