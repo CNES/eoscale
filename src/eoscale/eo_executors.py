@@ -306,7 +306,10 @@ def n_images_to_m_images_filter(inputs: list = None,
         for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=filter_desc):
 
             chunk_output_buffers, tile = future.result()
-            default_reduce(outputs, chunk_output_buffers, tile )
+            if concatenate_filter is None:
+                default_reduce(outputs, chunk_output_buffers, tile )
+            else : 
+                concatenate_filter(outputs, chunk_output_buffers, tile )
 
     output_virtual_paths = [ eoshared_inst.virtual_path for eoshared_inst in output_eoshareds ]
     
