@@ -10,7 +10,9 @@ However, having to use multiple processes means some complexity when it comes to
 
 EOScale relies on this concept to store and share large satellite images and their metadatas between processes without **duplicating memory space**.
 
-Currently, EOScale provides a N image to M image filter paradigm that uses a tiling strategy with the concept of stability margin to parallelize local dependency algorithms while ensuring identical results. All the complexity is done for you, you just have to define your algorithm as a callable function that takes as input a list of numpy arrays, a list of their corresponding image metadata and your filter parameters as a Python dictionnary and that is all !
+Currently, EOScale provides 2 paradigms: 
+- A generic N image to M image filter that uses a tiling strategy with the concept of stability margin to parallelize local dependency algorithms while ensuring identical results. All the complexity is done for you, you just have to define your algorithm as a callable function that takes as input a list of numpy arrays, a list of their corresponding image metadata and your filter parameters as a Python dictionnary and that is all !
+- A generic N image to M scalars that can returns anything that can be concatenated in a Map/Reduce paradigm. For example a histogram or statiscal values such as min, max or average.
 
 ## Your pipeline in memory !
 
