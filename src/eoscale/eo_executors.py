@@ -223,6 +223,7 @@ def n_images_to_m_images_filter(inputs: list = None,
                                 image_filter: Callable = None,
                                 filter_parameters: dict = None,
                                 generate_output_profiles: Callable = None,
+                                output_map = None,
                                 concatenate_filter: Callable = None,
                                 stable_margin: int = 0,
                                 context_manager: eom.EOContextManager = None,
@@ -306,7 +307,10 @@ def n_images_to_m_images_filter(inputs: list = None,
         for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=filter_desc):
 
             chunk_output_buffers, tile = future.result()
-            default_reduce(outputs, chunk_output_buffers, tile )
+            if concatenate_filter is None:
+                default_reduce(outputs, chunk_output_buffers, tile )
+            else : 
+                concatenate_filter(outputs, chunk_output_buffers, tile )
 
     output_virtual_paths = [ eoshared_inst.virtual_path for eoshared_inst in output_eoshareds ]
     
@@ -315,7 +319,8 @@ def n_images_to_m_images_filter(inputs: list = None,
 def execute_filter_n_images_to_m_scalars(image_filter: Callable,
                                          filter_parameters: dict,
                                          inputs: list,
-                                         tile: eotools.MpTile) -> tuple:
+                                         tile: eotools.MpTile,
+                                         context_manager: eom.EOContextManager) -> tuple:
     
     """
         This method execute the filter on the inputs and then extract the stable
@@ -391,7 +396,9 @@ def n_images_to_m_scalars(inputs: list = None,
                                     image_filter,
                                     filter_parameters,
                                     inputs,
-                                    tile) for tile in tiles }
+                                    tile,
+                                    context_manager,
+                                   ) for tile in tiles }
         
         for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=filter_desc):
 
