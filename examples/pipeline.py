@@ -53,13 +53,32 @@ def uniform_filter(input_buffers: list,
 
 ##############################################################################################
 
+def stats_filter(input_buffers : list, 
+                 input_profiles: list, 
+               filter_parameters: dict):
+
+    """ """
+    img = input_buffers[0]
+    min_value : float = numpy.min(img)
+    max_value : float = numpy.max(img)
+
+    return [min_value, max_value]
+
+##############################################################################################
+
+def stats_concatenate(output_scalars, chunk_output_scalars, tile):
+    output_scalars[0] = min( output_scalars[0], chunk_output_scalars[0] )
+    output_scalars[1] = max( output_scalars[1], chunk_output_scalars[1] )
+
+##############################################################################################
+
 if __name__ == "__main__":
 
     # Change with your one channel image
-    input_image_path: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/debug_ny/dsm_NEW-YORK_tuile_1.tif"
-    output_nodata_mask: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/eoscale/nodata_mask.tif"
-    output_filled_dsm: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/eoscale/filled_dsm.tif"
-    output_image_path: str = "/work/scratch/env/lassalp/bulldozer_workspace/bulldozer_sandbox/eoscale/smooth_dsm.tif"
+    input_image_path: str = "./examples/data/dsm.tif"
+    output_nodata_mask: str = "./examples/data/outputs/nodata_mask.tif"
+    output_filled_dsm: str = "./examples/data/outputs/filled_dsm.tif"
+    output_image_path: str = "./examples/data/outputs/smooth_dsm.tif"
 
     nb_workers: int = 8
     tile_mode: bool = True
@@ -72,7 +91,7 @@ if __name__ == "__main__":
 
         img_1 = eoscale_manager.open_raster(raster_path = input_image_path)
 
-        ### NoData mask filter
+        ### Step 1 : NoData filter
 
         nodata_outputs = eoexe.n_images_to_m_images_filter(inputs = [img_1],
                                                            image_filter = nodata_filter,
@@ -83,7 +102,7 @@ if __name__ == "__main__":
         # Flush the mask to disk
         eoscale_manager.write(key = nodata_outputs[0], img_path = output_nodata_mask)
 
-        ### Fill no data filter
+        ### Step 2: Fill no data filter
 
         fillnodata_parameters: dict = {
             "max_search_distance": 100.0,
@@ -108,7 +127,7 @@ if __name__ == "__main__":
         # Flush the filled dsm to disk
         eoscale_manager.write(key = fillnodata_outputs[0], img_path = output_filled_dsm)
 
-        ### Uniform filter
+        ### Step 3: Uniform filter
         uniform_parameters: dict = {
             "size": 3
         }
@@ -123,6 +142,19 @@ if __name__ == "__main__":
         
         # Flush the smooth filter to disk
         eoscale_manager.write(key = outputs[0], img_path = output_image_path)
+
+        eoscale_manager.release(key = fillnodata_outputs[0])
+
+        # Step 4: Stats computation
+
+        stats = eoexe.n_images_to_m_scalars(inputs = [outputs[0]],
+                                            image_filter = stats_filter,
+                                            nb_output_scalars = 2,
+                                            concatenate_filter = stats_concatenate,
+                                            context_manager = eoscale_manager,
+                                            filter_desc= "Min value processing...")
+
+        print(stats[0], stats[1])
 
     #############################################################################################################################
     # All shared resources are automatically released

@@ -1,4 +1,5 @@
 from multiprocessing import shared_memory
+import laspy
 import rasterio
 import numpy
 import uuid
@@ -6,6 +7,7 @@ import os
 import json
 import copy
 import eoscale.utils as eoutils
+import eoscale.data_types as eodt
 
 EOSHARED_PREFIX: str = "eoshared"
 EOSHARED_MTD: str = "metadata"
@@ -48,9 +50,21 @@ class EOShared:
         self.virtual_path = EOSHARED_PREFIX + "/" + mtd_len + "/" + key
     
     def _create_shared_metadata(self, profile: dict, key: str):
-        """ """
+        """ Sharing metadata from a raster satellite image """
         # Encode and compute the number of bytes of the metadata
         encoded_metadata = json.dumps(eoutils.rasterio_profile_to_dict(profile)).encode()
+        mtd_size: int = len(encoded_metadata)
+        self.shared_metadata_memory = shared_memory.SharedMemory(create=True, 
+                                                                 size=mtd_size, 
+                                                                 name=key + EOSHARED_MTD)
+        self.shared_metadata_memory.buf[:] = encoded_metadata[:]
+
+        # Create the virtual path to these shared resources
+        self._build_virtual_path(mtd_len=str(mtd_size), key = key)
+
+    def _create_shared_metadata_point_cloud(self, point_cloud_mtd: dict, key: str):
+        """ Sharing metadata from a point cloud """
+        encoded_metadata = json.dumps( point_cloud_mtd ).encode()
         mtd_size: int = len(encoded_metadata)
         self.shared_metadata_memory = shared_memory.SharedMemory(create=True, 
                                                                  size=mtd_size, 
@@ -112,6 +126,50 @@ class EOShared:
             big_array[:] = raster_dataset.read().flatten()[:]
 
             self._create_shared_metadata(profile = raster_dataset.profile, key = resource_key)
+        
+    def create_from_laspy_point_cloud_path(self,
+                                           point_cloud_path: str):
+        """ Create a shared memory numpy array from a point cloud file """
+        with laspy.open(point_cloud_path) as point_cloud_dataset:
+            
+            # Shared key is made unique
+            # this property is awesome since it allows the communication between parallel tasks
+            resource_key: str = str(uuid.uuid4())
+
+            # print(point_cloud_dataset.header.point_count)
+            # las_header = laspy.read(point_cloud_path)
+            # print(list(las_header.point_format.dimension_names))
+            # TODO take into consideration if there are color information
+            nb_layers: int  = 1 # (X, Y, Z)
+            point_cloud_size: int = point_cloud_dataset.header.point_count * 3
+            d_size = point_cloud_size * numpy.dtype("float").itemsize
+
+            # Create a shared memory instance of it
+            # shared memory must remain open to keep the memory view
+            self.shared_array_memory = shared_memory.SharedMemory(create=True, 
+                                                                  size=d_size, 
+                                                                  name=resource_key)
+
+            point_cloud = numpy.ndarray(shape=(point_cloud_size), 
+                                        dtype=numpy.float, 
+                                        buffer=self.shared_array_memory.buf)
+
+            pcloud_loader = point_cloud_dataset.read()
+            
+            point_cloud[0:point_cloud_dataset.header.point_count] = pcloud_loader.x
+            point_cloud[point_cloud_dataset.header.point_count: 2*point_cloud_dataset.header.point_count] = pcloud_loader.y
+            point_cloud[2*point_cloud_dataset.header.point_count: 3*point_cloud_dataset.header.point_count] = pcloud_loader.z
+
+
+            point_cloud_mtd: dict = {
+                "point_count": point_cloud_dataset.header.point_count,
+                "nb_layers": nb_layers # Only x, y z information for now
+            }
+
+            self._create_shared_metadata_point_cloud(point_cloud_mtd = point_cloud_mtd,
+                                                     key = resource_key)
+
+
 
     def get_profile(self) -> rasterio.DatasetReader.profile:
         """
@@ -123,27 +181,42 @@ class EOShared:
         return copy.deepcopy(eoutils.dict_to_rasterio_profile(json.loads(encoded_mtd.decode())))
 
     def get_array(self, 
-                  tile: eoutils.MpTile = None) -> numpy.ndarray:
+                  tile: eoutils.MpTile = None,
+                  data_type: eodt.DataType = eodt.DataType.RASTER) -> numpy.ndarray:
 
         """            
             Return a memory view of the array or a subset of it if a tile is given
             This has be done to be respect the dimension condition of the n_images_to_m_images filter.
         """
-        profile = self.get_profile()
-        array_shape = (profile['count'], profile['height'], profile['width'])
-        
-        arr = numpy.ndarray(array_shape,
-                            dtype=profile['dtype'],
-                            buffer=self.shared_array_memory.buf)
 
-        if tile is None:
-            return arr
-        else:
-            start_y = tile.start_y - tile.top_margin
-            end_y = tile.end_y + tile.bottom_margin + 1
-            start_x = tile.start_x - tile.left_margin
-            end_x = tile.end_x + tile.right_margin + 1
-            return arr[:, start_y:end_y, start_x:end_x]
+        profile = self.get_profile()
+        
+        if data_type == eodt.DataType.RASTER:
+
+            array_shape = (profile['count'], profile['height'], profile['width'])
+            
+            arr = numpy.ndarray(array_shape,
+                                dtype=profile['dtype'],
+                                buffer=self.shared_array_memory.buf)
+
+            if tile is None:
+                return arr
+            else:
+                start_y = tile.start_y - tile.top_margin
+                end_y = tile.end_y + tile.bottom_margin + 1
+                start_x = tile.start_x - tile.left_margin
+                end_x = tile.end_x + tile.right_margin + 1
+                return arr[:, start_y:end_y, start_x:end_x]
+        elif data_type == eodt.DataType.POINTCLOUD:
+
+            point_count: int = profile["point_count"]
+            nb_layers: int = profile ['nb_layers']
+
+            return numpy.ndarray((point_count * (2+nb_layers)),
+                                 dtype = numpy.float,
+                                 buffer = self.shared_array_memory.buf)
+
+
     
     def _update_profile(self, profile: dict) -> None:
         """ 

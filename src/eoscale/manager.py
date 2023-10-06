@@ -5,6 +5,7 @@ import copy
 
 import eoscale.utils as eoutils
 import eoscale.shared as eosh
+import eoscale.data_types as eodt
 
 class EOContextManager:
 
@@ -15,6 +16,10 @@ class EOContextManager:
         self.nb_workers = nb_workers
         self.tile_mode = tile_mode
         self.shared_resources: dict = dict()
+
+        # Key is the unique shared resource key and the value is the data type of the shared resources
+        self.shared_data_types: dict = dict()
+
         # Key is a unique memview key and value is a tuple (shared_resource_key, array subset, profile_subset)
         self.shared_mem_views: dict = dict()
     
@@ -30,6 +35,7 @@ class EOContextManager:
     def _release_all(self):
 
         self.shared_mem_views = dict()
+        self.shared_data_types = dict()
 
         for key in self.shared_resources:
             self.shared_resources[key].release()
@@ -47,6 +53,19 @@ class EOContextManager:
         new_shared_resource = eosh.EOShared()
         new_shared_resource.create_from_raster_path(raster_path = raster_path)
         self.shared_resources[new_shared_resource.virtual_path] = new_shared_resource
+        self.shared_data_types[new_shared_resource.virtual_path] = eodt.DataType.RASTER
+        return new_shared_resource.virtual_path
+    
+    def open_point_cloud(self,
+                         point_cloud_path: str) -> None:
+        
+        """
+            Create a new shared instance from a point cloud file (readable by laspy) 
+        """
+        new_shared_resource = eosh.EOShared()
+        new_shared_resource.create_from_laspy_point_cloud_path(point_cloud_path=point_cloud_path)
+        self.shared_resources[new_shared_resource.virtual_path] = new_shared_resource
+        self.shared_data_types[new_shared_resource.virtual_path] = eodt.DataType.POINTCLOUD
         return new_shared_resource.virtual_path
     
     def create_image(self, profile: dict) -> str:
@@ -61,6 +80,7 @@ class EOContextManager:
         eoshared_instance = eosh.EOShared()
         eoshared_instance.create_array(profile = profile)
         self.shared_resources[eoshared_instance.virtual_path] = eoshared_instance
+        self.shared_data_types[eoshared_instance.virtual_path] = eodt.DataType.RASTER
         return eoshared_instance.virtual_path
     
     def create_memview(self, key: str, arr_subset: numpy.ndarray, arr_subset_profile: dict) -> str:
@@ -87,7 +107,8 @@ class EOContextManager:
                 end_x = tile.end_x + tile.right_margin + 1
                 return self.shared_mem_views[key][1][:, start_y:end_y, start_x:end_x]
         else:
-            return self.shared_resources[key].get_array(tile = tile)
+            return self.shared_resources[key].get_array(tile = tile,
+                                                        data_type = self.shared_data_types[key])
     
     def get_profile(self, key: str) -> dict:
         """
@@ -115,6 +136,8 @@ class EOContextManager:
         if key in self.shared_resources:
             self.shared_resources[key].release()
             del self.shared_resources[key]
+        
+        del self.shared_data_types[key]
     
     def write(self, key: str, img_path: str):
         """
@@ -122,7 +145,7 @@ class EOContextManager:
         """
         if key in self.shared_resources:
             profile = self.shared_resources[key].get_profile()
-            img_buffer = self.shared_resources[key].get_array()
+            img_buffer = self.shared_resources[key].get_array(data_type = self.shared_data_types[key])
             with rasterio.open( img_path, "w", **profile) as out_dataset:
                 out_dataset.write(img_buffer)
         else:
@@ -133,10 +156,13 @@ class EOContextManager:
             This method update the profile of a given key and returns the new key
         """
         tmp_value = self.shared_resources[key]
+        tmp_data_type = self.shared_data_types[key]
         del self.shared_resources[key]
+        del self.shared_data_types[key]
         tmp_value._release_profile()
         new_key: str = tmp_value._update_profile(profile)
         self.shared_resources[new_key] = tmp_value
+        self.shared_data_types[new_key] = tmp_data_type
         return new_key
     
     def start(self):
