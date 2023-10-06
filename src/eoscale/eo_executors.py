@@ -8,11 +8,7 @@ import copy
 import eoscale.shared as eosh
 import eoscale.utils as eotools
 import eoscale.manager as eom
-
-def isPowerOfTwo(x: int):
-    # First x in the below expression
-    # is for the case when x is 0
-    return (x and (not(x & (x - 1))) )
+import eoscale.data_types as eodt
 
 def compute_mp_strips(image_height: int,
                       image_width: int,
@@ -159,6 +155,9 @@ def allocate_outputs(profiles: list,
         # Be careful to not close theses shared instances, because they are referenced in
         # the context manager.
         context_manager.shared_resources[output_eoshared_instances[i].virtual_path] = output_eoshared_instances[i]
+        context_manager.shared_data_types[output_eoshared_instances[i].virtual_path] = eodt.DataType.RASTER
+
+        arr = context_manager.get_array(key = output_eoshared_instances[i].virtual_path)
 
     return output_eoshared_instances
 
@@ -223,7 +222,6 @@ def n_images_to_m_images_filter(inputs: list = None,
                                 image_filter: Callable = None,
                                 filter_parameters: dict = None,
                                 generate_output_profiles: Callable = None,
-                                output_map = None,
                                 concatenate_filter: Callable = None,
                                 stable_margin: int = 0,
                                 context_manager: eom.EOContextManager = None,
@@ -408,6 +406,123 @@ def n_images_to_m_scalars(inputs: list = None,
     
     return output_scalars
 
+def compute_target_geometry(point_cloud_key: str,
+                            resolution: float,
+                            context_manager: eom.EOContextManager):
+    """ """
     
+    point_cloud = context_manager.get_array(key= point_cloud_key)
+    point_cloud_mtd = context_manager.get_profile(key=point_cloud_key)
+    point_count : int = point_cloud_mtd["point_count"]
 
+    roi = { "xmin": resolution * ((numpy.min(point_cloud[0:point_count]) - resolution / 2) // resolution),
+            "ymax": resolution * ((numpy.max(point_cloud[point_count:2*point_count]) + resolution / 2) // resolution),
+            "xmax": resolution * ((numpy.max(point_cloud[0:point_count]) + resolution / 2) // resolution),
+            "ymin": resolution * ((numpy.min(point_cloud[point_count:2*point_count]) - resolution / 2) // resolution),
+          }
+    
+    roi["xstart"] = roi["xmin"]
+    roi["ystart"] = roi["ymax"]
+    roi["xsize"] = int((roi["xmax"] - roi["xmin"]) / resolution)
+    roi["ysize"] = int((roi["ymax"] - roi["ymin"]) / resolution)
+
+    return roi
+
+def execute_filter_point_cloud_to_n_images(point_cloud_filter: Callable,
+                                           point_cloud_filter_parameters: dict,
+                                           point_cloud_key: str,
+                                           tile: eotools.MpTile,
+                                           context_manager: eom.EOContextManager) -> tuple:
+    
+    """
+        This method execute the filter on the inputs and then extract the stable 
+        area from the resulting outputs before returning them.
+    """
+
+    # Get references to input numpy array buffers
+    point_cloud_buffer = context_manager.get_array(key=point_cloud_key)
+    point_cloud_profile = context_manager.get_profile(key = point_cloud_key)
+
+    output_buffer = point_cloud_filter(point_cloud_buffer, 
+                                       point_cloud_profile,
+                                       tile, 
+                                       point_cloud_filter_parameters)
+
+    # Reshape some output buffers if necessary since even for one channel image eoscale
+    # needs a shape like this (channel, height, width) and it is really shitty to ask 
+    # the developer to take care of this...
+    if len(output_buffer.shape) == 2:
+        output_buffer = output_buffer.reshape((1, output_buffer.shape[0], output_buffer.shape[1]))
+
+    stable_start_x = tile.left_margin
+    stable_start_y = tile.top_margin
+    stable_end_x = stable_start_x + tile.end_x - tile.start_x + 1
+    stable_end_y = stable_start_y + tile.end_y - tile.start_y + 1
+    output_buffer = output_buffer[:, stable_start_y:stable_end_y, stable_start_x:stable_end_x]
+    
+    return output_buffer, tile
+
+def point_cloud_to_image(input_point_cloud: str = None, 
+                         point_cloud_filter: Callable = None,
+                         point_cloud_filter_parameters: dict = None,
+                         image_resolution: float = None,
+                         stable_margin: int = 0,
+                         context_manager: eom.EOContextManager = None,
+                         filter_desc: str = "Point cloud to Image MultiProcessing..."):
+    """ """
+
+    # Compute the target geometry
+    image_frame = compute_target_geometry(point_cloud_key = input_point_cloud,
+                                          resolution = image_resolution,
+                                          context_manager = context_manager)
+    
+    # A bit tricky, has to be carefully explained in the EOScale documentation, the point cloud filter
+    # parameters dictionnary will be enriched with a new key "image_frame" giving the frame of the corresponding
+    # image given the point cloud footprint and an image resolution
+    point_cloud_filter_parameters["image_frame"] = image_frame    
+
+    # Creation of the output image profile
+    # TODO check nblayers to take into consideration additional information color, ...
+    nb_layers: int = context_manager.get_profile(key = input_point_cloud)["nb_layers"]
+    output_profile = eotools.create_default_rasterio_profile(nb_bands = nb_layers,
+                                                             dtype = numpy.float,
+                                                             xstart = image_frame["xstart"],
+                                                             ystart = image_frame["ystart"],
+                                                             xsize = image_frame["xsize"],
+                                                             ysize = image_frame["ysize"],
+                                                             resolution=image_resolution,
+                                                             nodata = 0)
+    # Allocate the rasterized image and compute the tiles
+    output_eoshareds = allocate_outputs(profiles = [output_profile],
+                                        context_manager = context_manager)
+    output_image_key = output_eoshareds[0].virtual_path
+    outputs = [ eoshared_inst.get_array() for eoshared_inst in output_eoshareds]
+
+    # Compute the strips
+    tiles = compute_mp_tiles(inputs = [output_image_key],
+                             stable_margin = stable_margin,
+                             nb_workers = context_manager.nb_workers,
+                             tile_mode = context_manager.tile_mode,
+                             context_manager=context_manager)
+    
+    for tile in tiles:
+        print("Process tile ", tile)
+        chunk_output_buffer, tile = execute_filter_point_cloud_to_n_images(point_cloud_filter, point_cloud_filter_parameters, input_point_cloud, tile, context_manager)
+        default_reduce(outputs, [chunk_output_buffer], tile )
+
+    # # # Multi processing execution
+    # with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles))) as executor:
+
+    #     futures = { executor.submit(execute_filter_point_cloud_to_n_images,
+    #                                 point_cloud_filter,
+    #                                 point_cloud_filter_parameters,
+    #                                 input_point_cloud,
+    #                                 tile,
+    #                                 context_manager) for tile in tiles }
         
+    #     for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=filter_desc):
+
+    #         chunk_output_buffer, tile = future.result()
+    #         default_reduce(outputs, [chunk_output_buffer], tile )
+    
+    return output_eoshareds[0].virtual_path

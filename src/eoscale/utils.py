@@ -1,4 +1,6 @@
 import rasterio
+from rasterio.profiles import DefaultGTiffProfile
+from rasterio.transform import Affine
 import numpy
 from collections import namedtuple
 
@@ -64,3 +66,25 @@ def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
             rasterio_profile[key] = value
 
     return rasterio_profile
+
+def create_default_rasterio_profile(nb_bands: int,
+                                    dtype: numpy.dtype,
+                                    xstart: float,
+                                    ystart: float,
+                                    xsize: int,
+                                    ysize: int,
+                                    resolution: float,
+                                    nodata: float = None) -> rasterio.DatasetReader.profile :
+    
+    transform = Affine.translation(xstart, ystart)
+    transform = transform * Affine.scale(resolution, -resolution)
+    profile = DefaultGTiffProfile(
+        count = nb_bands,
+        dtype = dtype,
+        width = xsize,
+        height = ysize,
+        transform = transform,
+        nodata = nodata
+    )
+
+    return profile

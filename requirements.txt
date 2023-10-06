@@ -1,4 +1,5 @@
 numpy
 rasterio
+laspy
 tqdm
 scipy
