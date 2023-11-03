@@ -12,6 +12,8 @@ import eoscale.data_types as eodt
 EOSHARED_PREFIX: str = "eoshared"
 EOSHARED_MTD: str = "metadata"
 
+import time
+
 class EOShared:
 
     def __init__(self, virtual_path: str = None):
@@ -91,7 +93,8 @@ class EOShared:
                                                               size=d_size, 
                                                               name=resource_key)
         
-        big_array = numpy.ndarray(shape=(profile["count"]  * profile["height"] * profile["width"]), 
+        big_array = numpy.ndarray(shape=(profile["count"], profile["height"], profile["width"]),
+                                         order = 'C', 
                                          dtype= numpy.dtype(profile["dtype"]), 
                                          buffer=self.shared_array_memory.buf)
         big_array.fill(0)
@@ -105,6 +108,7 @@ class EOShared:
         
         with rasterio.open(raster_path, "r") as raster_dataset:
 
+
             # Shared key is made unique
             # this property is awesome since it allows the communication between parallel tasks
             resource_key: str = str(uuid.uuid4())
@@ -117,13 +121,13 @@ class EOShared:
             self.shared_array_memory = shared_memory.SharedMemory(create=True, 
                                                                   size=d_size, 
                                                                   name=resource_key)
-            
 
-            big_array = numpy.ndarray(shape=(raster_dataset.count  * raster_dataset.height * raster_dataset.width), 
+            big_array = numpy.ndarray(shape=(raster_dataset.count, raster_dataset.height, raster_dataset.width),
+                                      order = 'C', 
                                       dtype=raster_dataset.dtypes[0], 
                                       buffer=self.shared_array_memory.buf)
-
-            big_array[:] = raster_dataset.read().flatten()[:]
+            
+            raster_dataset.read(out=big_array)
 
             self._create_shared_metadata(profile = raster_dataset.profile, key = resource_key)
         

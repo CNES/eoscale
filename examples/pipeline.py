@@ -75,10 +75,10 @@ def stats_concatenate(output_scalars, chunk_output_scalars, tile):
 if __name__ == "__main__":
 
     # Change with your one channel image
-    input_image_path: str = "./examples/data/dsm.tif"
-    output_nodata_mask: str = "./examples/data/outputs/nodata_mask.tif"
-    output_filled_dsm: str = "./examples/data/outputs/filled_dsm.tif"
-    output_image_path: str = "./examples/data/outputs/smooth_dsm.tif"
+    input_image_path: str = "./data/dsm.tif"
+    output_nodata_mask: str = "./data/outputs/nodata_mask.tif"
+    output_filled_dsm: str = "./data/outputs/filled_dsm.tif"
+    output_image_path: str = "./data/outputs/smooth_dsm.tif"
 
     nb_workers: int = 8
     tile_mode: bool = True
