@@ -1,5 +1,6 @@
 from typing import Callable
 import concurrent.futures
+import multiprocessing
 import tqdm
 import numpy
 import math
@@ -225,6 +226,7 @@ def n_images_to_m_images_filter(inputs: list = None,
                                 concatenate_filter: Callable = None,
                                 stable_margin: int = 0,
                                 context_manager: eom.EOContextManager = None,
+                                multiproc_context: str = "fork",   #could also be "spawn" or "forkserver"
                                 filter_desc: str = "N Images to M images MultiProcessing...") -> list:
     """
         Generic paradigm to process n images providing m resulting images using a paradigm
@@ -293,7 +295,7 @@ def n_images_to_m_images_filter(inputs: list = None,
     #     default_reduce(outputs, chunk_output_buffers, tile )
 
     # # Multi processing execution
-    with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles))) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles)),mp_context=multiprocessing.get_context(multiproc_context)) as executor:
 
         futures = { executor.submit(execute_filter_n_images_to_n_images,
                                     image_filter,
@@ -345,6 +347,7 @@ def n_images_to_m_scalars(inputs: list = None,
                           output_scalars: list = None,
                           concatenate_filter: Callable = None,
                           context_manager: eom.EOContextManager = None,
+                          multiproc_context: str = "fork",   #could also be "spawn" or "forkserver"
                           filter_desc: str = "N Images to M Scalars MultiProcessing...") -> list:
     """
         Generic paradigm to process n images providing m resulting scalars using a paradigm
@@ -388,7 +391,7 @@ def n_images_to_m_scalars(inputs: list = None,
         output_scalars : list = [ 0.0 for i in range(nb_output_scalars) ]
 
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles))) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles)),mp_context=multiprocessing.get_context(multiproc_context)) as executor:
 
         futures = { executor.submit(execute_filter_n_images_to_m_scalars,
                                     image_filter,
@@ -468,6 +471,7 @@ def point_cloud_to_image(input_point_cloud: str = None,
                          image_resolution: float = None,
                          stable_margin: int = 0,
                          context_manager: eom.EOContextManager = None,
+                         multiproc_context: str = "fork",   #could also be "spawn" or "forkserver"
                          filter_desc: str = "Point cloud to Image MultiProcessing..."):
     """ """
 
@@ -511,7 +515,7 @@ def point_cloud_to_image(input_point_cloud: str = None,
         default_reduce(outputs, [chunk_output_buffer], tile )
 
     # # # Multi processing execution
-    # with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles))) as executor:
+    # with concurrent.futures.ProcessPoolExecutor(max_workers= min(context_manager.nb_workers, len(tiles)),mp_context=multiprocessing.get_context(multiproc_context)) as executor:
 
     #     futures = { executor.submit(execute_filter_point_cloud_to_n_images,
     #                                 point_cloud_filter,
