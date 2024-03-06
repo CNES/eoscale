@@ -17,8 +17,11 @@ def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
     metadata = dict()
     for key, value in profile.items():
         if key == "crs":
-            # call to to_authority() gives ('EPSG', '32654')
-            metadata['crs'] = int(profile['crs'].to_authority()[1])
+            if value is None:
+                metadata['crs'] = None
+            else:
+                # call to to_authority() gives ('EPSG', '32654')
+                metadata['crs'] = int(profile['crs'].to_authority()[1])
         elif key == "transform":
             metadata['transform_1'] = profile['transform'][0]
             metadata['transform_2'] = profile['transform'][1]
@@ -47,7 +50,10 @@ def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
     rasterio_profile = {}
     for key, value in metadata.items():
         if key == "crs":
-            rasterio_profile["crs"] = rasterio.crs.CRS.from_epsg(metadata['crs'])
+            if value != None:
+                rasterio_profile["crs"] = rasterio.crs.CRS.from_epsg(metadata['crs'])
+            else:
+                rasterio_profile["crs"] = None
         elif key == "transform_1":
             rasterio_profile['transform'] = rasterio.Affine(metadata['transform_1'], 
                                                             metadata['transform_2'], 
