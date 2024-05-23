@@ -12,7 +12,7 @@ def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
     """
         Convert a rasterio profile to a serializable python dictionnary
         needed for storing in a chunk of memory that will be shared among
-        processes 
+        processes
     """
     metadata = dict()
     for key, value in profile.items():
@@ -23,12 +23,15 @@ def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
                 # call to to_authority() gives ('EPSG', '32654')
                 metadata['crs'] = int(profile['crs'].to_authority()[1])
         elif key == "transform":
-            metadata['transform_1'] = profile['transform'][0]
-            metadata['transform_2'] = profile['transform'][1]
-            metadata['transform_3'] = profile['transform'][2]
-            metadata['transform_4'] = profile['transform'][3]
-            metadata['transform_5'] = profile['transform'][4]
-            metadata['transform_6'] = profile['transform'][5]
+            if value is None:
+                metadata['transform'] = None
+            else:
+                metadata['transform_1'] = profile['transform'][0]
+                metadata['transform_2'] = profile['transform'][1]
+                metadata['transform_3'] = profile['transform'][2]
+                metadata['transform_4'] = profile['transform'][3]
+                metadata['transform_5'] = profile['transform'][4]
+                metadata['transform_6'] = profile['transform'][5]
         elif key == "nodata":
             if value is None:
                 metadata[key] = JSON_NONE
@@ -55,14 +58,17 @@ def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
             else:
                 rasterio_profile["crs"] = None
         elif key == "transform_1":
-            rasterio_profile['transform'] = rasterio.Affine(metadata['transform_1'], 
-                                                            metadata['transform_2'], 
-                                                            metadata['transform_3'], 
-                                                            metadata['transform_4'], 
-                                                            metadata['transform_5'], 
+            rasterio_profile['transform'] = rasterio.Affine(metadata['transform_1'],
+                                                            metadata['transform_2'],
+                                                            metadata['transform_3'],
+                                                            metadata['transform_4'],
+                                                            metadata['transform_5'],
                                                             metadata['transform_6'])
-        elif key.startswith("transform"):
+        elif key.startswith("transform_"):
             continue
+        elif key == "transform":
+            if value is None :
+                rasterio_profile["transform"] = None
         elif key == "nodata":
             if value == JSON_NONE:
                 rasterio_profile[key] = None
@@ -81,7 +87,6 @@ def create_default_rasterio_profile(nb_bands: int,
                                     ysize: int,
                                     resolution: float,
                                     nodata: float = None) -> rasterio.DatasetReader.profile :
-    
     transform = Affine.translation(xstart, ystart)
     transform = transform * Affine.scale(resolution, -resolution)
     profile = DefaultGTiffProfile(
