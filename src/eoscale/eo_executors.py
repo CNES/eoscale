@@ -1,6 +1,9 @@
-from typing import Callable
+from pathlib import Path
+from typing import Callable, Optional
 import concurrent.futures
 import multiprocessing
+
+import numpy as np
 import tqdm
 import numpy
 import math
@@ -167,7 +170,6 @@ def execute_filter_n_images_to_n_images(image_filter: Callable,
                                         inputs: list,
                                         tile: eotools.MpTile,
                                         context_manager: eom.EOContextManager) -> tuple:
-    
     """
         This method execute the filter on the inputs and then extract the stable 
         area from the resulting outputs before returning them.
@@ -218,6 +220,31 @@ def default_reduce(outputs: list,
     """ Fill the outputs buffer with the results provided by the map filter from a strip """
     for c in range(len(chunk_output_buffers)):
         outputs[c][:, tile.start_y: tile.end_y + 1, tile.start_x : tile.end_x + 1] = chunk_output_buffers[c][:,:,:]
+
+VirtualPath = str
+from numpy.typing import DTypeLike
+def concatenate_filter(input_buffers: list,
+                       input_profiles: list,
+                       params: dict) -> list[numpy.ndarray] :
+    res = np.stack(input_buffers, axis=0, dtype=params["np_type"]).squeeze()
+    return [res]
+
+def concatenate_profile(input_profiles: list,
+                        params: dict) -> dict:
+    """ """
+    mask_profile = input_profiles[0]
+    mask_profile['dtype'] = params["np_type"]
+    mask_profile['nodata'] = None
+    mask_profile['count'] = len(input_profiles)
+    return [mask_profile]
+def concatenate_images(context: eom.EOContextManager, inputs: list[str] | list[VirtualPath], as_type:DTypeLike=np.float32) -> VirtualPath:
+    imgs = [context.open_raster(raster_path=img) for img in inputs]
+    return n_images_to_m_images_filter(inputs=imgs,
+                                       image_filter=concatenate_filter,
+                                       filter_parameters={"np_type":as_type},
+                                       generate_output_profiles=concatenate_profile,
+                                       context_manager=context,
+                                       filter_desc="Concatenate processing...")
 
 def n_images_to_m_images_filter(inputs: list = None, 
                                 image_filter: Callable = None,
