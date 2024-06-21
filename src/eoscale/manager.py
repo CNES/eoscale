@@ -97,6 +97,8 @@ class EOContextManager:
             This method returns a memory view from the key given by the user.
             This key can be a shared resource key or a memory view key 
         """
+        if not isinstance(key, str):
+            raise TypeError(f"key parameters must be type 'str' not '{type(key).__name__}'")
         if key in self.shared_mem_views:
             if tile is None:
                 return self.shared_mem_views[key][1]
