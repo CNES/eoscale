@@ -2,12 +2,11 @@ from typing import Literal, Callable, Optional, Any
 
 import numpy as np
 
+from eoscale.data_types import VirtualPath
 from eoscale.eo_executors import n_images_to_m_images_filter
 from eoscale.manager import EOContextManager
 from numpy.typing import DTypeLike
 from scipy.ndimage import generic_filter
-
-VirtualPath = str
 
 
 def sliding_window_reduce_with_kernel(arr, func: Callable, kernel_size: tuple,

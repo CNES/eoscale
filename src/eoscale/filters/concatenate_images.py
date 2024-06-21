@@ -1,11 +1,10 @@
 import numpy as np
 
+from eoscale.data_types import VirtualPath
 from eoscale.eo_executors import n_images_to_m_images_filter
 from eoscale.manager import EOContextManager
 
 from numpy.typing import DTypeLike
-
-VirtualPath = str
 
 
 def concatenate_filter(input_buffers: list,
