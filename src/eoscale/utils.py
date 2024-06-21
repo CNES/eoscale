@@ -4,9 +4,11 @@ from rasterio.transform import Affine
 import numpy
 from collections import namedtuple
 
-MpTile = namedtuple('MpTile', ["start_x", "start_y", "end_x", "end_y", "top_margin", "right_margin", "left_margin", "bottom_margin"])
+MpTile = namedtuple('MpTile', ["start_x", "start_y", "end_x", "end_y", "top_margin", "right_margin", "left_margin",
+                               "bottom_margin"])
 
 JSON_NONE: str = "none"
+
 
 def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
     """
@@ -46,7 +48,8 @@ def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
             metadata[key] = value
     return metadata
 
-def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
+
+def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile:
     """
         Convert a serializable dictionnary to a rasterio profile
     """
@@ -67,7 +70,7 @@ def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
         elif key.startswith("transform_"):
             continue
         elif key == "transform":
-            if value is None :
+            if value is None:
                 rasterio_profile["transform"] = None
         elif key == "nodata":
             if value == JSON_NONE:
@@ -79,6 +82,7 @@ def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
 
     return rasterio_profile
 
+
 def create_default_rasterio_profile(nb_bands: int,
                                     dtype: numpy.dtype,
                                     xstart: float,
@@ -86,16 +90,16 @@ def create_default_rasterio_profile(nb_bands: int,
                                     xsize: int,
                                     ysize: int,
                                     resolution: float,
-                                    nodata: float = None) -> rasterio.DatasetReader.profile :
+                                    nodata: float = None) -> rasterio.DatasetReader.profile:
     transform = Affine.translation(xstart, ystart)
     transform = transform * Affine.scale(resolution, -resolution)
     profile = DefaultGTiffProfile(
-        count = nb_bands,
-        dtype = dtype,
-        width = xsize,
-        height = ysize,
-        transform = transform,
-        nodata = nodata
+        count=nb_bands,
+        dtype=dtype,
+        width=xsize,
+        height=ysize,
+        transform=transform,
+        nodata=nodata
     )
 
     return profile
