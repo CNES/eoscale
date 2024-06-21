@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import numpy as np
 from scipy.ndimage import generic_filter
+import pytest
 
 from eoscale.eo_executors import compute_mp_tiles
 from eoscale.filters.concatenate_images import concatenate_images
@@ -12,6 +13,7 @@ from tests.utils import read_raster
 
 def test_n_to_m_imgs(eoscale_paths):
     """
+    Tests the concatenation of multiple images and verifies the shape of the resulting array.
     """
     imgs = [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster]
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
@@ -37,20 +39,28 @@ def constant(array: np.ndarray, constant_value: int):
     return constant_value
 
 
-def test_generic_filter_constant(eoscale_paths):
+@pytest.mark.parametrize(
+    "expected_type", [np.float32, np.uint8]
+)
+def test_generic_filter_constant(expected_type, eoscale_paths):
     """
+    Tests the generic kernel filter with a constant function and output types
     """
+    const_value = 42
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         out_vpath = generic_kernel_filter(eoscale_manager,
                                           [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
-                                          constant, 2, func_kwarg={"constant_value": 42})[0]
+                                          constant, 2, dtype=expected_type, func_kwarg={"constant_value": const_value})[0]
         arr_const = eoscale_manager.get_array(out_vpath)
+        assert arr_const.dtype == expected_type, "wrong output type"
         assert arr_const.shape == (1, 512, 512)
-        print(np.unique(arr_const, return_counts=True))
+        counts = np.unique(arr_const, return_counts=True)
+        assert counts[0][0] == const_value and counts[-1][0] == 512 * 512, "margin introduce unexpected values"
 
 
 def test_n_to_m_imgs_margin(eoscale_paths):
     """
+    Tests the generic kernel filter with and without margins and verifies the results.
     """
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         out_vpath = generic_kernel_filter(eoscale_manager,
