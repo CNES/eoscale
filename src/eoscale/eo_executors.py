@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Literal
 import concurrent.futures
 import multiprocessing
 
@@ -233,22 +233,52 @@ def n_images_to_m_images_filter(inputs: list = None,
                                 concatenate_filter: Callable = None,
                                 stable_margin: int = 0,
                                 context_manager: eom.EOContextManager = None,
-                                multiproc_context: str = "fork",  # could also be "spawn" or "forkserver"
-                                filter_desc: str = "N Images to M images MultiProcessing...") -> list:
+                                multiproc_context: Literal["fork", "spawn", "forkserver"] = "fork",
+                                filter_desc: str = "N Images to M images MultiProcessing...") -> list[eodt.VirtualPath]:
     """
-        Generic paradigm to process n images providing m resulting images using a paradigm
-        similar to the good old map/reduce
+    Applies a given filter in parallel to a list of input image
 
-        image_filter is processed in parallel
+    This function processes the input images by dividing them into tiles, applying the specified filter function to each tile,
+    and then combining the results.
 
-        generate_output_profiles is a callable taking as input a list of rasterio profiles and the dictionnary
-        filter_parameters and returning a list of output profiles. 
-        This callable is used by EOScale to allocate new shared images given their profile. It determines the value m
-        of the n_image_to_m_image executor.
+    Warning
+    -------
+    Strong hypothesis: all input image are in the same geometry and have the same size
 
-        concatenate_filter is processed by the master node to aggregate results
+    Parameters
+    ----------
+    inputs : list, optional
+        List of input image paths or VirtualPaths. Must contain at least one image.
+    image_filter : Callable, optional
+        The filter function to be applied to the images. This must be provided.
+    filter_parameters : dict, optional
+        Parameters to be passed to the filter function.
+    generate_output_profiles : Callable, optional
+        Function to generate output rasterio profiles from the input profiles and filter parameters.
+    concatenate_filter : Callable, optional
+        Function to concatenate filter outputs.
+    stable_margin : int, optional
+        Margin to be considered as stable during processing. Default is 0.
+    context_manager : eom.EOContextManager, optional
+        The context manager for handling EOScale processes. This must be provided.
+    multiproc_context : Literal["fork", "spawn", "forkserver"], optional
+        Multiprocessing context to be used, can be "fork", "spawn", or "forkserver". Default is "fork".
+    filter_desc : str, optional
+        Description of the filter processing to be displayed in the progress bar. Default is "N Images to M images MultiProcessing...".
 
-        Strong hypothesis: all input image are in the same geometry and have the same size
+    Returns
+    -------
+    list[VirtualPath]
+        List of VirtualPath to the filtered output images.
+
+    Raises
+    ------
+    ValueError
+        If no input images are provided.
+    ValueError
+        If no image filter function is provided.
+    ValueError
+        If no context manager is provided.
     """
     if len(inputs) < 1:
         raise ValueError("At least one input image must be given.")
