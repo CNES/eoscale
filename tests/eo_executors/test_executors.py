@@ -50,7 +50,8 @@ def test_generic_filter_constant(expected_type, eoscale_paths):
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         out_vpath = generic_kernel_filter(eoscale_manager,
                                           [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
-                                          constant, 2, dtype=expected_type, func_kwarg={"constant_value": const_value})[0]
+                                          constant, 2, dtype=expected_type, func_kwarg={"constant_value": const_value})[
+            0]
         arr_const = eoscale_manager.get_array(out_vpath)
         assert arr_const.dtype == expected_type, "wrong output type"
         assert arr_const.shape == (1, 512, 512)
