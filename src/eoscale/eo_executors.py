@@ -192,7 +192,7 @@ def execute_filter_n_images_to_n_images(image_filter: Callable,
             output_buffers = [output_buffers]
 
     # Reshape some output buffers if necessary since even for one channel image eoscale
-    # needs a shape like this (channel, height, width) and it is really shitty to ask 
+    # needs a shape like this (channel, height, width)
     # the developer to take care of this...
     for o in range(len(output_buffers)):
         if len(output_buffers[o].shape) == 2:
@@ -488,7 +488,7 @@ def execute_filter_point_cloud_to_n_images(point_cloud_filter: Callable,
                                        point_cloud_filter_parameters)
 
     # Reshape some output buffers if necessary since even for one channel image eoscale
-    # needs a shape like this (channel, height, width) and it is really shitty to ask 
+    # needs a shape like this (channel, height, width)
     # the developer to take care of this...
     if len(output_buffer.shape) == 2:
         output_buffer = output_buffer.reshape((1, output_buffer.shape[0], output_buffer.shape[1]))
