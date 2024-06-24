@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import numpy as np
 
 from eoscale.data_types import VirtualPath
@@ -8,7 +10,7 @@ from eoscale.manager import EOContextManager
 
 def stats_filter(input_buffers: list,
                  input_profiles: list,
-                 filter_parameters: dict) -> list[float]:
+                 filter_parameters: dict) -> List[float]:
     """
     Computes statistics (minimum and maximum) for each input buffer.
 
@@ -53,8 +55,8 @@ def stats_concatenate(output_scalars, chunk_output_scalars, tile) -> None:
 
 
 def minmax_filter(context: EOContextManager,
-                  inputs: list[str] | list[VirtualPath],
-                  ) -> tuple[float, float]:
+                  inputs: List[str],
+                  ) -> Tuple[float, float]:
     """
     Minimum and maximum values from a list of raster inputs using n_images_to_m_scalars.
 

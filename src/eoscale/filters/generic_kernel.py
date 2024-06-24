@@ -1,4 +1,4 @@
-from typing import Literal, Callable, Optional, Any
+from typing import Literal, Callable, Optional, Any, List, Dict
 
 import numpy as np
 
@@ -12,7 +12,7 @@ from scipy.ndimage import generic_filter
 def sliding_window_reduce_with_kernel(arr, func: Callable, kernel_size: tuple,
                                       mode: Literal["reflect", "constant", "nearest", "mirror", "wrap"],
                                       cval: int,
-                                      func_kwarg: Optional[dict[str, Any]] = None,
+                                      func_kwarg: Optional[Dict[str, Any]] = None,
                                       output_dtype: DTypeLike = np.float32) -> np.ndarray:
     """
     Applies a sliding window reduction using a specified kernel and function.
@@ -50,7 +50,7 @@ def sliding_window_reduce_with_kernel(arr, func: Callable, kernel_size: tuple,
 
 def kernel_filter(input_buffers: list,
                   input_profiles: list,
-                  params: dict) -> list[np.ndarray]:
+                  params: dict) -> List[np.ndarray]:
     return [sliding_window_reduce_with_kernel(img, params["func"],
                                               params["kernel_shape"], params["mode"], params["cval"],
                                               params["func_kwarg"]) for img in
@@ -65,14 +65,14 @@ def generic_profile(input_profiles: list,
     return [profile] * len(input_profiles)
 
 
-def generic_kernel_filter(context: EOContextManager, inputs: list[str] | list[VirtualPath],
+def generic_kernel_filter(context: EOContextManager, inputs: List[str],
                           func: Callable,
                           kernel_radius: int = 1,
                           mode: Literal["reflect", "constant", "nearest", "mirror", "wrap"] = "constant",
                           cval=0.0,
                           dtype: DTypeLike = np.float32,
-                          func_kwarg: Optional[dict[str, Any]] = None
-                          ) -> list[VirtualPath]:
+                          func_kwarg: Optional[Dict[str, Any]] = None
+                          ) -> List[VirtualPath]:
     """Applies a sliding window reduction using a specified kernel and function to a list of input.
 
     Parameters

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Optional, Literal
+from typing import Callable, Optional, Literal, List
 import concurrent.futures
 import multiprocessing
 
@@ -234,7 +234,7 @@ def n_images_to_m_images_filter(inputs: list = None,
                                 stable_margin: int = 0,
                                 context_manager: eom.EOContextManager = None,
                                 multiproc_context: Literal["fork", "spawn", "forkserver"] = "fork",
-                                filter_desc: str = "N Images to M images MultiProcessing...") -> list[eodt.VirtualPath]:
+                                filter_desc: str = "N Images to M images MultiProcessing...") -> List[eodt.VirtualPath]:
     """
     Applies a given filter in parallel to a list of input image
 
@@ -377,7 +377,7 @@ def execute_filter_n_images_to_m_scalars(image_filter: Callable,
     return output_scalars, tile
 
 
-def n_images_to_m_scalars(inputs: list[str],
+def n_images_to_m_scalars(inputs: List[str],
                           image_filter: Callable,
                           concatenate_filter: Callable,
                           context_manager: eom.EOContextManager,

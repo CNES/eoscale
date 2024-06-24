@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 
 from eoscale.data_types import VirtualPath
@@ -9,7 +11,7 @@ from numpy.typing import DTypeLike
 
 def concatenate_filter(input_buffers: list,
                        input_profiles: list,
-                       params: dict) -> list[np.ndarray]:
+                       params: dict) -> List[np.ndarray]:
     """
     Concatenates a list of input buffers along the first axis (bands).
 
@@ -34,7 +36,7 @@ def concatenate_filter(input_buffers: list,
 
 
 def concatenate_profile(input_profiles: list,
-                        params: dict) -> list[dict]:
+                        params: dict) -> List[dict]:
     """
     Generates a concatenated profile based on input profiles and parameters.
 
@@ -58,7 +60,7 @@ def concatenate_profile(input_profiles: list,
     return [profile]
 
 
-def concatenate_images(context: EOContextManager, inputs: list[str] | list[VirtualPath],
+def concatenate_images(context: EOContextManager, inputs: List[str] ,
                        as_type: DTypeLike = np.float32) -> VirtualPath:
     """
     Concatenates a list of input images into a single output image.
