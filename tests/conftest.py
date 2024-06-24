@@ -21,7 +21,7 @@ def eoscale_paths(request) -> EOScaleTestsData:
     return EOScaleTestsData(Path(__file__).resolve().parent.parent)
 
 @pytest.fixture(scope="function")
-def numpy_data(request, tmpdir):
+def numpy_data(request, tmpdir) -> str:
     """
     Fixture that generates a temporary raster file from a numpy array and provides its path.
 
