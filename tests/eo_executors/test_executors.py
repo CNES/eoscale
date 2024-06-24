@@ -12,15 +12,31 @@ from eoscale.manager import EOContextManager
 from tests.utils import read_raster
 
 
-def test_n_to_m_imgs(eoscale_paths):
+def test_concatenate(eoscale_paths):
     """
     Tests the concatenation of multiple images and verifies the shape of the resulting array.
+
+    This test verifies that the `concatenate_images` function correctly concatenates multiple
+    input raster images into a single array and checks that the resulting array has the
+    expected shape.
+
+    Parameters
+    ----------
+    eoscale_paths : EOScaleTestsData
+        An instance of EOSScalePaths providing the paths to the DSM raster images used as
+        inputs in the test.
+
+    Raises
+    ------
+    AssertionError
+        If the shape of the concatenated array does not match the expected shape, indicating
+        a failure in the concatenation process.
     """
     imgs = [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster]
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         concatenate_vpath = concatenate_images(eoscale_manager, imgs)
         concatenate_array = eoscale_manager.get_array(concatenate_vpath)
-        assert concatenate_array.shape == (len(imgs), 512, 512)
+        assert concatenate_array.shape == (len(imgs), 512, 512), "concatenate filter fails"
 
 
 def compute_mp_tiles_margin_0(inputs: list,
@@ -44,9 +60,27 @@ def constant(array: np.ndarray, constant_value: int):
 @pytest.mark.parametrize(
     "expected_type", [np.float32, np.uint8]
 )
-def test_generic_filter_constant(expected_type, eoscale_paths):
+def test_constant(expected_type, eoscale_paths):
     """
-    Tests the generic kernel filter with a constant function and output types
+    Tests the generic kernel filter with a constant function and different output types.
+
+    This test applies a kernel filter with a constant function to input raster images and
+    verifies that the output type matches the expected type and do not contains any new values.
+    It also checks that the resulting array has the correct shape and that the values are as
+    expected.
+
+    Parameters
+    ----------
+    expected_type : type
+        The expected data type for the output array, parameterized to test both `np.float32` and `np.uint8`.
+    eoscale_paths : EOScaleTestsData
+        An instance of EOScaleTestsData providing the paths to the DSM raster images used as inputs in the test.
+
+    Raises
+    ------
+    AssertionError
+        If any of the assertions fail, indicating discrepancies in the output type, shape, or values of
+        the processed array.
     """
     const_value = 42
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
@@ -63,7 +97,25 @@ def test_generic_filter_constant(expected_type, eoscale_paths):
 
 def test_n_to_m_imgs_margin(eoscale_paths):
     """
-    Tests the generic kernel filter with and without margins and verifies the results.
+    Test the generic kernel filter with and without margins and verify the results.
+
+    This test applies a kernel filter with a summation function to input raster images,
+    once considering margins and once without considering margins. It ensures that the
+    results differ when margins are included or excluded and checks if the kernel processing
+    is consistent with a reference implementation.
+
+    Parameters
+    ----------
+    eoscale_paths : EOScaleTestsData
+        An instance of EOSScalePaths providing the paths to the DSM raster images used
+        as inputs in the test.
+
+    Raises
+    ------
+    AssertionError
+        If any of the assertions fail, indicating discrepancies in the shapes or values of
+        the arrays processed with and without margins or inconsistencies with the reference
+        implementation.
     """
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         out_vpath = generic_kernel_filter(eoscale_manager,
@@ -91,9 +143,9 @@ def test_n_images_m_scalars(numpy_data, eoscale_paths):
     Test function for processing scalar with EOContextManager.
 
     This test verifies the functionality of processing scalar numpy arrays
-    alongside a DSM raster using an EOContextManager instance. It parametrizes
-    over different scalar arrays: large positive values, large negative values,
-    and random values.
+    alongside a DSM raster (containing values [-32768.0, 124.62529]) using an EOContextManager
+    instance. It parametrizes over different scalar arrays: large positive values, large negative
+    values, and random values [0.0, 1.0).
 
     Parameters
     ----------
@@ -101,7 +153,7 @@ def test_n_images_m_scalars(numpy_data, eoscale_paths):
         The scalar numpy array provided by the pytest fixture. This array is
         expanded to have a shape of (1, 512, 512).
 
-    eoscale_paths : EOPathsFixture
+    eoscale_paths : EOScaleTestsData
         Fixture providing paths to data used in the test.
 
     Raises
@@ -119,7 +171,7 @@ def test_n_images_m_scalars(numpy_data, eoscale_paths):
 
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         min_max = minmax_filter(eoscale_manager, [eoscale_paths.dsm_raster, numpy_data])
-        assert len(min_max) == 2
+        assert len(min_max) == 2, "minmax_filter output must be a list of 2 elements"
         test_min, test_max = min_max
-        assert np.allclose(test_min, expected_min)
-        assert np.allclose(test_max, expected_max)
+        assert np.allclose(test_min, expected_min), "minmax_filter fail to detect the minimum"
+        assert np.allclose(test_max, expected_max), "minmax_filter fail to detect the maximum"
