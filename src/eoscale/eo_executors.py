@@ -379,11 +379,11 @@ def execute_filter_n_images_to_m_scalars(image_filter: Callable,
 
 def n_images_to_m_scalars(inputs: list[str],
                           image_filter: Callable,
-                          filter_parameters: dict,
-                          nb_output_scalars: int,
-                          output_scalars: list,
                           concatenate_filter: Callable,
                           context_manager: eom.EOContextManager,
+                          filter_parameters: dict = None,
+                          nb_output_scalars: int = None,
+                          output_scalars: list = None,
                           multiproc_context: Literal["fork", "spawn", "forkserver"] = "fork",
                           filter_desc: str = "N Images to M Scalars MultiProcessing...") -> list:
     """
