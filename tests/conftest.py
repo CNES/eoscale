@@ -14,4 +14,4 @@ class EOScaleTestsData():
 
 @pytest.fixture
 def eoscale_paths(request) -> EOScaleTestsData:
-    return EOScaleTestsData(Path.cwd().parent.parent)
+    return EOScaleTestsData(Path(__file__).resolve().parent.parent)
