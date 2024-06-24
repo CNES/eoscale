@@ -377,24 +377,71 @@ def execute_filter_n_images_to_m_scalars(image_filter: Callable,
     return output_scalars, tile
 
 
-def n_images_to_m_scalars(inputs: list = None,
-                          image_filter: Callable = None,
-                          filter_parameters: dict = None,
-                          nb_output_scalars: int = None,
-                          output_scalars: list = None,
-                          concatenate_filter: Callable = None,
-                          context_manager: eom.EOContextManager = None,
-                          multiproc_context: str = "fork",  # could also be "spawn" or "forkserver"
+def n_images_to_m_scalars(inputs: list[str],
+                          image_filter: Callable,
+                          filter_parameters: dict,
+                          nb_output_scalars: int,
+                          output_scalars: list,
+                          concatenate_filter: Callable,
+                          context_manager: eom.EOContextManager,
+                          multiproc_context: Literal["fork", "spawn", "forkserver"] = "fork",
                           filter_desc: str = "N Images to M Scalars MultiProcessing...") -> list:
     """
-        Generic paradigm to process n images providing m resulting scalars using a paradigm
-        similar to the good old map/reduce
+    Generic paradigm to process n images providing m resulting scalars.
 
-        image_filter is processed in parallel
+    This function processes multiple input images (`inputs`) using the `image_filter` function
+    in parallel. It divides the input images into chunks (tiles) for parallel processing,
+    aggregates the resulting scalars using `concatenate_filter`, and returns the final list of
+    aggregated scalars.
 
-        concatenate_filter is processed by the master node to aggregate results
+    Parameters
+    ----------
+    inputs : list[str]
+        List of input images represented as paths or VirtualPath objects. Default is None.
 
-        Strong hypothesis: all input image are in the same geometry and have the same size 
+    image_filter : Callable
+        Callable function that processes each input image in parallel.
+
+    filter_parameters : dict
+        Additional parameters to pass to the `image_filter` function.
+
+    nb_output_scalars : int
+        Number of output scalars expected from the processing.
+
+    output_scalars : list
+        List to store the resulting scalars. If not provided, it is initialized with zeros.
+        Default is None.
+
+    concatenate_filter : Callable, optional
+        Callable function that aggregates the output scalars from each chunk. Default is None.
+
+    context_manager : eom.EOContextManager, optional
+        EOContextManager instance for managing the execution context. Default is None.
+
+    multiproc_context : Literal, optional
+        Multiprocessing context ('fork', 'spawn', or 'forkserver'). Default is 'fork'.
+
+    filter_desc : str, optional
+        Description for progress tracking. Default is "N Images to M Scalars MultiProcessing...".
+
+    Returns
+    -------
+    list
+        List of resulting scalars after processing all input images.
+
+    Raises
+    ------
+    ValueError
+        If any of the required parameters (`inputs`, `image_filter`, `concatenate_filter`,
+        `nb_output_scalars`, or `context_manager`) is not provided.
+
+    Notes
+    -----
+    Users may find the chunking workflow important to note. In this workflow, the image_filter
+    callable processes chunks of data, and its outputs are then passed to the concatenate_filter
+    function, which can be utilized for storing temporary results. While this approach is
+    well-suited for computing metrics such as minimum and maximum values, it is not suitable
+    for calculations requiring access to the entire dataset, such as standard deviation.
     """
 
     if len(inputs) < 1:
