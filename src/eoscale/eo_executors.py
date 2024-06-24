@@ -402,6 +402,12 @@ def n_images_to_m_scalars(inputs: list[str],
     image_filter : Callable
         Callable function that processes each input image in parallel.
 
+    concatenate_filter : Callable, optional
+        Callable function that aggregates the output scalars from each chunk. Default is None.
+
+    context_manager : eom.EOContextManager, optional
+        EOContextManager instance for managing the execution context. Default is None.
+
     filter_parameters : dict
         Additional parameters to pass to the `image_filter` function.
 
@@ -411,12 +417,6 @@ def n_images_to_m_scalars(inputs: list[str],
     output_scalars : list
         List to store the resulting scalars. If not provided, it is initialized with zeros.
         Default is None.
-
-    concatenate_filter : Callable, optional
-        Callable function that aggregates the output scalars from each chunk. Default is None.
-
-    context_manager : eom.EOContextManager, optional
-        EOContextManager instance for managing the execution context. Default is None.
 
     multiproc_context : Literal, optional
         Multiprocessing context ('fork', 'spawn', or 'forkserver'). Default is 'fork'.
