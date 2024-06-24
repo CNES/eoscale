@@ -142,7 +142,7 @@ def default_generate_output_profiles(input_profiles: list) -> list:
     """
         This method makes a deep copy of the input profiles 
     """
-    return [copy.deepcopy(in_profile) for input_profile in input_profiles]
+    return [copy.deepcopy(input_profile) for input_profile in input_profiles]
 
 
 def allocate_outputs(profiles: list,
