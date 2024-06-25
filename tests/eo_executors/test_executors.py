@@ -190,3 +190,25 @@ def test_n_images_m_scalars(numpy_data, eoscale_paths):
         test_min, test_max = min_max
         assert np.allclose(test_min, expected_min), "minmax_filter fail to detect the minimum"
         assert np.allclose(test_max, expected_max), "minmax_filter fail to detect the maximum"
+
+def test_release_memory(eoscale_paths):
+    """
+    Tests the release of memory associated with a concatenated raster image.
+
+    Checks that the array does not own its data (indicating it is a view),
+    and then releases the memory associated with the concatenated image. Finally, it verifies
+    that attempting to access the array after releasing the memory raises a KeyError.
+
+    Parameters
+    ----------
+    eoscale_paths : EoscalePaths
+        Object containing paths to DSM raster images.
+    """
+    imgs = [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster]
+    with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+        concatenate_vpath = concatenate_images(eoscale_manager, imgs)
+        concatenate_array = eoscale_manager.get_array(concatenate_vpath)
+        assert concatenate_array.flags["OWNDATA"] is False
+        eoscale_manager.release(concatenate_vpath)
+        with pytest.raises(KeyError):
+            eoscale_manager.get_array(concatenate_vpath)
