@@ -149,10 +149,10 @@ def test_n_to_m_imgs_margin(eoscale_paths, tmpdir):
                             str(raster_no_margin_file)]), "profiles must be consistent with input data"
 
 
-@pytest.mark.parametrize("numpy_data", [np.expand_dims(np.ones((512, 512)) * 50000, axis=0),
+@pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.ones((512, 512)) * 50000, axis=0),
                                         np.expand_dims(np.ones((512, 512)) * -50000, axis=0),
                                         np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
-def test_n_images_m_scalars(numpy_data, eoscale_paths):
+def test_n_images_m_scalars(raster_data_generator, eoscale_paths):
     """
     Test function for processing scalar with EOContextManager.
 
@@ -163,7 +163,7 @@ def test_n_images_m_scalars(numpy_data, eoscale_paths):
 
     Parameters
     ----------
-    numpy_data : np.ndarray
+    raster_data_generator : np.ndarray
         The scalar numpy array provided by the pytest fixture. This array is
         expanded to have a shape of (1, 512, 512).
 
@@ -179,12 +179,12 @@ def test_n_images_m_scalars(numpy_data, eoscale_paths):
     dsm_min = -32768.0
     dsm_max = 124.62529
 
-    test_arr = read_raster(numpy_data)
+    test_arr = read_raster(raster_data_generator)
     expected_min = min(np.min(test_arr), dsm_min)
     expected_max = max(np.max(test_arr), dsm_max)
 
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
-        min_max = minmax_filter(eoscale_manager, [eoscale_paths.dsm_raster, numpy_data])
+        min_max = minmax_filter(eoscale_manager, [eoscale_paths.dsm_raster, raster_data_generator])
         assert len(min_max) == 2, "minmax_filter output must be a list of 2 elements"
         test_min, test_max = min_max
         assert np.allclose(test_min, expected_min), "minmax_filter fail to detect the minimum"
@@ -214,8 +214,8 @@ def test_release_memory(eoscale_paths):
             eoscale_manager.get_array(concatenate_vpath)
 
 
-@pytest.mark.parametrize("numpy_data", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
-def test_tile_mode(numpy_data):
+@pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
+def test_tile_mode(raster_data_generator):
     """
     Tests the behavior of the processing pipeline with different tile modes.
 
@@ -226,17 +226,17 @@ def test_tile_mode(numpy_data):
 
     Parameters
     ----------
-    eoscale_paths : EoscalePaths
+    raster_data_generator : EoscalePaths
         Object containing paths to DSM raster images.
     """
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         vpath_tiled = generic_kernel_filter(eoscale_manager,
-                                            [numpy_data],
+                                            [raster_data_generator],
                                             np.sum, 2)[0]
         arr_tiled = eoscale_manager.get_array(vpath_tiled).copy()
     with EOContextManager(nb_workers=5, tile_mode=False) as eoscale_manager:
         vpath_strips = generic_kernel_filter(eoscale_manager,
-                                             [numpy_data],
+                                             [raster_data_generator],
                                              np.sum, 2)[0]
         arr_strips = eoscale_manager.get_array(vpath_strips).copy()
     assert np.allclose(arr_tiled, arr_strips), "results with tile_mode=True != tile_mode=False"
