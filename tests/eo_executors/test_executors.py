@@ -212,3 +212,29 @@ def test_release_memory(eoscale_paths):
         eoscale_manager.release(concatenate_vpath)
         with pytest.raises(KeyError):
             eoscale_manager.get_array(concatenate_vpath)
+
+def test_tile_mode(eoscale_paths):
+    """
+    Tests the behavior of the processing pipeline with different tile modes.
+
+    This test compares the results of a generic kernel filter applied to DSM raster images
+    using two different EOContextManager instances: one with `tile_mode=True` and another
+    with `tile_mode=False`. It verifies that the resulting arrays from both modes are
+    identical by performing an element-wise comparison.
+
+    Parameters
+    ----------
+    eoscale_paths : EoscalePaths
+        Object containing paths to DSM raster images.
+    """
+    with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+        vpath_tiled = generic_kernel_filter(eoscale_manager,
+                                          [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
+                                          np.sum, 2)[0]
+        arr_tiled = eoscale_manager.get_array(vpath_tiled).copy()
+    with EOContextManager(nb_workers=5, tile_mode=False) as eoscale_manager:
+        vpath_strips = generic_kernel_filter(eoscale_manager,
+                                          [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
+                                          np.sum, 2)[0]
+        arr_strips = eoscale_manager.get_array(vpath_strips).copy()
+    assert np.allclose(arr_tiled, arr_strips), "results with tile_mode=True != tile_mode=False"
