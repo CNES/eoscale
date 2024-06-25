@@ -163,7 +163,7 @@ def test_n_images_m_scalars(raster_data_generator, eoscale_paths):
 
     Parameters
     ----------
-    raster_data_generator : np.ndarray
+    raster_data_generator : str
         The scalar numpy array provided by the pytest fixture. This array is
         expanded to have a shape of (1, 512, 512).
 
@@ -226,8 +226,9 @@ def test_tile_mode(raster_data_generator):
 
     Parameters
     ----------
-    raster_data_generator : EoscalePaths
-        Object containing paths to DSM raster images.
+    raster_data_generator : str
+        The numpy array provided by the pytest fixture. This array is
+        expanded to have a shape of (1, 512, 512).
     """
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         vpath_tiled = generic_kernel_filter(eoscale_manager,
