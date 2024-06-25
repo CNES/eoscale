@@ -1,4 +1,4 @@
-from typing import Literal, Callable, Optional, Any, List, Dict
+from typing import Literal, Callable, Optional, Any, List, Dict, Union
 
 import numpy as np
 
@@ -7,6 +7,7 @@ from eoscale.eo_executors import n_images_to_m_images_filter
 from eoscale.manager import EOContextManager
 from numpy.typing import DTypeLike
 from scipy.ndimage import generic_filter
+from pathlib import Path
 
 
 def sliding_window_reduce_with_kernel(arr, func: Callable, kernel_size: tuple,
@@ -65,7 +66,8 @@ def generic_profile(input_profiles: list,
     return [profile] * len(input_profiles)
 
 
-def generic_kernel_filter(context: EOContextManager, inputs: List[str],
+def generic_kernel_filter(context: EOContextManager,
+                          inputs: List[Union[str, VirtualPath]],
                           func: Callable,
                           kernel_radius: int = 1,
                           mode: Literal["reflect", "constant", "nearest", "mirror", "wrap"] = "constant",
@@ -99,7 +101,12 @@ def generic_kernel_filter(context: EOContextManager, inputs: List[str],
     list[VirtualPath]
         The paths to the output virtual files.
     """
-    imgs = [context.open_raster(raster_path=img) for img in inputs]
+    imgs = []
+    for input_file in inputs:
+        if Path.exists(Path(input_file)):
+            imgs.append(context.open_raster(raster_path=input_file))
+        else:
+            imgs.append(input_file)
     kernel_shape = (1, 1 + 2 * kernel_radius, 1 + 2 * kernel_radius)
     return n_images_to_m_images_filter(inputs=imgs,
                                        image_filter=kernel_filter,
