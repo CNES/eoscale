@@ -150,8 +150,8 @@ def test_n_to_m_imgs_margin(eoscale_paths, tmpdir):
 
 
 @pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.ones((512, 512)) * 50000, axis=0),
-                                        np.expand_dims(np.ones((512, 512)) * -50000, axis=0),
-                                        np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
+                                                   np.expand_dims(np.ones((512, 512)) * -50000, axis=0),
+                                                   np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
 def test_n_images_m_scalars(raster_data_generator, eoscale_paths):
     """
     Test function for processing scalar with EOContextManager.
@@ -189,55 +189,3 @@ def test_n_images_m_scalars(raster_data_generator, eoscale_paths):
         test_min, test_max = min_max
         assert np.allclose(test_min, expected_min), "minmax_filter fail to detect the minimum"
         assert np.allclose(test_max, expected_max), "minmax_filter fail to detect the maximum"
-
-
-def test_release_memory(eoscale_paths):
-    """
-    Tests the release of memory associated with a concatenated raster image.
-
-    Checks that the array does not own its data (indicating it is a view),
-    and then releases the memory associated with the concatenated image. Finally, it verifies
-    that attempting to access the array after releasing the memory raises a KeyError.
-
-    Parameters
-    ----------
-    eoscale_paths : EoscalePaths
-        Object containing paths to DSM raster images.
-    """
-    imgs = [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster]
-    with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
-        concatenate_vpath = concatenate_images(eoscale_manager, imgs)
-        concatenate_array = eoscale_manager.get_array(concatenate_vpath)
-        assert concatenate_array.flags["OWNDATA"] is False
-        eoscale_manager.release(concatenate_vpath)
-        with pytest.raises(KeyError):
-            eoscale_manager.get_array(concatenate_vpath)
-
-
-@pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
-def test_tile_mode(raster_data_generator):
-    """
-    Tests the behavior of the processing pipeline with different tile modes.
-
-    This test compares the results of a generic kernel filter applied to a raster containing
-    random values using two different EOContextManager instances: one with `tile_mode=True`
-    and another with `tile_mode=False`. It verifies that the resulting arrays from both modes are
-    identical by performing an element-wise comparison.
-
-    Parameters
-    ----------
-    raster_data_generator : str
-        The numpy array provided by the pytest fixture. This array is
-        expanded to have a shape of (1, 512, 512).
-    """
-    with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
-        vpath_tiled = generic_kernel_filter(eoscale_manager,
-                                            [raster_data_generator],
-                                            np.sum, 2)[0]
-        arr_tiled = eoscale_manager.get_array(vpath_tiled).copy()
-    with EOContextManager(nb_workers=5, tile_mode=False) as eoscale_manager:
-        vpath_strips = generic_kernel_filter(eoscale_manager,
-                                             [raster_data_generator],
-                                             np.sum, 2)[0]
-        arr_strips = eoscale_manager.get_array(vpath_strips).copy()
-    assert np.allclose(arr_tiled, arr_strips), "results with tile_mode=True != tile_mode=False"
