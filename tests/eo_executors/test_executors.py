@@ -9,7 +9,7 @@ from eoscale.filters.concatenate_images import concatenate_images
 from eoscale.filters.generic_kernel import generic_kernel_filter
 from eoscale.filters.stats_minmax import minmax_filter
 from eoscale.manager import EOContextManager
-from tests.utils import read_raster
+from tests.utils import read_raster, assert_profiles
 
 
 def test_concatenate(eoscale_paths):
@@ -95,20 +95,24 @@ def test_constant(expected_type, eoscale_paths):
         assert counts[0][0] == const_value and counts[-1][0] == 512 * 512, "margin introduce unexpected values"
 
 
-def test_n_to_m_imgs_margin(eoscale_paths):
+def test_n_to_m_imgs_margin(eoscale_paths, tmpdir):
     """
     Test the generic kernel filter with and without margins and verify the results.
 
     This test applies a kernel filter with a summation function to input raster images,
     once considering margins and once without considering margins. It ensures that the
     results differ when margins are included or excluded and checks if the kernel processing
-    is consistent with a reference implementation.
+    is consistent with a reference implementation. Check also if every rasterio profile
+    are consistent.
 
     Parameters
     ----------
     eoscale_paths : EOScaleTestsData
         An instance of EOSScalePaths providing the paths to the DSM raster images used
         as inputs in the test.
+
+    tmpdir : py.path.local
+        Pytest fixture providing a temporary directory path.
 
     Raises
     ------
@@ -117,6 +121,7 @@ def test_n_to_m_imgs_margin(eoscale_paths):
         the arrays processed with and without margins or inconsistencies with the reference
         implementation.
     """
+
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         out_vpath = generic_kernel_filter(eoscale_manager,
                                           [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
@@ -131,8 +136,18 @@ def test_n_to_m_imgs_margin(eoscale_paths):
         assert arr_margin.shape == arr_no_margin.shape, "results with/without margin must have the same shape"
         assert np.allclose(arr_margin, arr_no_margin) is False, "results with/without margin must be different"
         arr_margin = np.copy(arr_margin)
+
+        raster_margin_file = tmpdir / "raster_magin.tif"
+        raster_no_margin_file = tmpdir / "raster_no_magin.tif"
+        eoscale_manager.write(key=out_vpath, img_path=str(raster_margin_file))
+        eoscale_manager.write(key=out_vpath_no_marge, img_path=str(raster_no_margin_file))
+
     arr_ref = generic_filter(read_raster(eoscale_paths.dsm_raster), np.sum, size=(1, 5, 5), mode="constant", cval=0)
     assert np.allclose(arr_ref, arr_margin), "kernel processing different from reference"
+    assert assert_profiles([str(eoscale_paths.dsm_raster),
+                            str(raster_margin_file),
+                            str(raster_no_margin_file)]), "profiles must be consistent with input data"
+
 
 
 @pytest.mark.parametrize("numpy_data", [np.expand_dims(np.ones((512, 512)) * 50000, axis=0),
