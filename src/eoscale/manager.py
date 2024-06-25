@@ -86,8 +86,33 @@ class EOContextManager:
 
     def create_memview(self, key: str, arr_subset: numpy.ndarray, arr_subset_profile: dict) -> str:
         """
-            This method allows the developper to indicate a subset memory view of a shared resource he wants to use as input
-            of an executor.
+        Creates a memory view of a subset of a shared resource for use as input to an executor.
+
+        Parameters
+        ----------
+        key : str
+            The key to associate with the shared resource.
+        arr_subset : numpy.ndarray
+            The subset of the array to be used as the memory view.
+        arr_subset_profile : dict
+            The profile dictionary containing metadata for the subset array.
+
+        Returns
+        -------
+        str
+            A unique key for the created memory view.
+
+        Example
+        -------
+        >>> raster_file = 'my_raster.tif'
+        >>> with rasterio.open(raster_file, "r") as raster_dataset:
+        >>>     profile = raster_dataset.profile
+        >>>     data = raster_dataset.read()
+        >>>
+        >>> with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+        >>>     access_key = "some_access_key"
+        >>>     new_key = eoscale_manager.create_memview(key=access_key, arr_subset=data, arr_subset_profile=profile)
+        >>>     arr_from_memview = eoscale_manager.get_array(new_key)
         """
         mem_view_key: str = str(uuid.uuid4())
         self.shared_mem_views[mem_view_key] = (key, arr_subset, arr_subset_profile)
