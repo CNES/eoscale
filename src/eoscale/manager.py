@@ -95,8 +95,43 @@ class EOContextManager:
 
     def get_array(self, key: str, tile: eoutils.MpTile = None) -> numpy.ndarray:
         """
-            This method returns a memory view from the key given by the user.
-            This key can be a shared resource key or a memory view key 
+        Returns a memory view or an array from the key given by the user.
+
+        Parameters
+        ----------
+        key : str
+            A key that identifies the shared resource or memory view to be returned.
+        tile : eoutils.MpTile, optional
+            An optional tile object specifying the portion of the array to be returned.
+            If not provided, the full array is returned.
+
+        Returns
+        -------
+        numpy.ndarray
+            The array or memory view corresponding to the provided key.
+            If a tile is specified, returns the subset of the array defined by the tile.
+
+        Raises
+        ------
+        TypeError
+            If the key parameter is not of type 'str'.
+
+        Notes
+        -----
+        - If the key corresponds to a shared memory view, and no tile is specified,
+          the entire memory view is returned.
+        - If the key corresponds to a shared memory view and a tile is specified,
+          the method returns the portion of the memory view defined by the tile.
+        - If the key does not correspond to a shared memory view,
+          the method retrieves the array from shared resources using the specified key
+          and tile, and the associated data type.
+
+        Warning
+        -------
+        Users should be aware that the returned array is a view.
+        Attempting to access this view outside the EOScale context manager may lead to a
+        segmentation fault or a memory leak.
+
         """
         if not isinstance(key, str):
             raise TypeError(f"key parameters must be type 'str' not '{type(key).__name__}'")
@@ -127,7 +162,6 @@ class EOContextManager:
         """
             Release definitely the corresponding shared resource
         """
-
         mem_view_keys_to_remove: list = []
         # Remove from the mem view dictionnary all the key related to the share resource key
         for k in self.shared_mem_views:
