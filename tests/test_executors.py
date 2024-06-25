@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import numpy as np
+import rasterio
 from scipy.ndimage import generic_filter
 import pytest
 
@@ -12,9 +13,10 @@ from eoscale.manager import EOContextManager
 from tests.utils import read_raster, assert_profiles
 
 
-def test_concatenate(eoscale_paths):
+def test_concatenate_path_virtual_path(eoscale_paths):
     """
-    Tests the concatenation of multiple images and verifies the shape of the resulting array.
+    Tests the concatenation of multiple images from disk and VirtualPath then verifies the shape of
+    the resulting array.
 
     This test verifies that the `concatenate_images` function correctly concatenates multiple
     input raster images into a single array and checks that the resulting array has the
@@ -29,14 +31,20 @@ def test_concatenate(eoscale_paths):
     Raises
     ------
     AssertionError
-        If the shape of the concatenated array does not match the expected shape, indicating
-        a failure in the concatenation process.
+        If the shape of the concatenated array does not match the expected shape and if bands are
+        not equal, indicating a failure in the concatenation process.
     """
-    imgs = [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster]
+    with rasterio.open(eoscale_paths.dsm_raster, "r") as raster_dataset:
+        profile = raster_dataset.profile
+        data = raster_dataset.read()
+
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+        new_key = eoscale_manager.create_memview(key="access_key", arr_subset=data, arr_subset_profile=profile)
+        imgs = [eoscale_paths.dsm_raster, new_key]
         concatenate_vpath = concatenate_images(eoscale_manager, imgs)
         concatenate_array = eoscale_manager.get_array(concatenate_vpath)
         assert concatenate_array.shape == (len(imgs), 512, 512), "concatenate filter fails"
+        assert np.allclose(concatenate_array[0, :, :], concatenate_array[1, :, :])
 
 
 def compute_mp_tiles_margin_0(inputs: list,
