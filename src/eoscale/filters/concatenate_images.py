@@ -1,4 +1,5 @@
-from typing import List
+from pathlib import Path
+from typing import List, Union
 
 import numpy as np
 
@@ -60,7 +61,7 @@ def concatenate_profile(input_profiles: list,
     return [profile]
 
 
-def concatenate_images(context: EOContextManager, inputs: List[str] ,
+def concatenate_images(context: EOContextManager, inputs: List[Union[str, VirtualPath]] ,
                        as_type: DTypeLike = np.float32) -> VirtualPath:
     """
     Concatenates a list of input images into a single output image.
@@ -69,7 +70,7 @@ def concatenate_images(context: EOContextManager, inputs: List[str] ,
     ----------
     context : EOContextManager
         Context manager for handling input and output.
-    inputs : list of str or list of VirtualPath
+    inputs : list of str or VirtualPath
         List of input image paths.
     as_type : DTypeLike, optional
         Data type for the output image. Default is np.float32.
@@ -84,7 +85,12 @@ def concatenate_images(context: EOContextManager, inputs: List[str] ,
     ValueError
         If more than one output path is generated.
     """
-    imgs = [context.open_raster(raster_path=img) for img in inputs]
+    imgs = []
+    for input_file in inputs:
+        if Path.exists(Path(input_file)):
+            imgs.append(context.open_raster(raster_path=input_file))
+        else:
+            imgs.append(input_file)
     v_path = n_images_to_m_images_filter(inputs=imgs,
                                          image_filter=concatenate_filter,
                                          filter_parameters={"np_type": as_type},
