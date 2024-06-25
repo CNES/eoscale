@@ -60,7 +60,7 @@ def test_tile_mode(raster_data_generator):
 
 
 @pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
-def test_create_image(raster_data_generator):
+def test_create_memview(raster_data_generator):
     """
     Test the ability to provide an array to EOContextManager and retrieve it.
 
