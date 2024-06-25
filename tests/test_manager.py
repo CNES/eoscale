@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import rasterio
 
 from eoscale.filters.concatenate_images import concatenate_images
 from eoscale.filters.generic_kernel import generic_kernel_filter
@@ -43,7 +44,7 @@ def test_tile_mode(raster_data_generator):
     ----------
     raster_data_generator : str
         The numpy array provided by the pytest fixture. This array is
-        expanded to have a shape of (1, 512, 512).
+        expanded to have a shape of (bands, height, width).
     """
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         vpath_tiled = generic_kernel_filter(eoscale_manager,
@@ -56,3 +57,25 @@ def test_tile_mode(raster_data_generator):
                                              np.sum, 2)[0]
         arr_strips = eoscale_manager.get_array(vpath_strips).copy()
     assert np.allclose(arr_tiled, arr_strips), "results with tile_mode=True != tile_mode=False"
+
+
+@pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
+def test_create_image(raster_data_generator):
+    """
+    Test the ability to provide an array to EOContextManager and retrieve it.
+
+    Parameters
+    ----------
+    raster_data_generator : str
+        The numpy array provided by the pytest fixture. This array is
+        expanded to have a shape of (bands, height, width).
+    """
+    with rasterio.open(raster_data_generator, "r") as raster_dataset:
+        profile = raster_dataset.profile
+        data = raster_dataset.read()
+
+    with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+        access_key = "some_access_key"
+        new_key = eoscale_manager.create_memview(key=access_key, arr_subset=data, arr_subset_profile=profile)
+        arr_from_memview = eoscale_manager.get_array(new_key)
+        assert np.allclose(arr_from_memview, data), "EOContextManager.get_array method alter data coming from create_memview"
