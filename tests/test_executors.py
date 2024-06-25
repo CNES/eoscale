@@ -165,7 +165,7 @@ def test_n_images_m_scalars(raster_data_generator, eoscale_paths):
     ----------
     raster_data_generator : str
         The scalar numpy array provided by the pytest fixture. This array is
-        expanded to have a shape of (1, 512, 512).
+        expanded to have a shape of (bands, height, width).
 
     eoscale_paths : EOScaleTestsData
         Fixture providing paths to data used in the test.
