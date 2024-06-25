@@ -149,7 +149,6 @@ def test_n_to_m_imgs_margin(eoscale_paths, tmpdir):
                             str(raster_no_margin_file)]), "profiles must be consistent with input data"
 
 
-
 @pytest.mark.parametrize("numpy_data", [np.expand_dims(np.ones((512, 512)) * 50000, axis=0),
                                         np.expand_dims(np.ones((512, 512)) * -50000, axis=0),
                                         np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
@@ -191,6 +190,7 @@ def test_n_images_m_scalars(numpy_data, eoscale_paths):
         assert np.allclose(test_min, expected_min), "minmax_filter fail to detect the minimum"
         assert np.allclose(test_max, expected_max), "minmax_filter fail to detect the maximum"
 
+
 def test_release_memory(eoscale_paths):
     """
     Tests the release of memory associated with a concatenated raster image.
@@ -213,13 +213,15 @@ def test_release_memory(eoscale_paths):
         with pytest.raises(KeyError):
             eoscale_manager.get_array(concatenate_vpath)
 
-def test_tile_mode(eoscale_paths):
+
+@pytest.mark.parametrize("numpy_data", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
+def test_tile_mode(numpy_data):
     """
     Tests the behavior of the processing pipeline with different tile modes.
 
-    This test compares the results of a generic kernel filter applied to DSM raster images
-    using two different EOContextManager instances: one with `tile_mode=True` and another
-    with `tile_mode=False`. It verifies that the resulting arrays from both modes are
+    This test compares the results of a generic kernel filter applied to a raster containing
+    random values using two different EOContextManager instances: one with `tile_mode=True`
+    and another with `tile_mode=False`. It verifies that the resulting arrays from both modes are
     identical by performing an element-wise comparison.
 
     Parameters
@@ -229,12 +231,12 @@ def test_tile_mode(eoscale_paths):
     """
     with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
         vpath_tiled = generic_kernel_filter(eoscale_manager,
-                                          [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
-                                          np.sum, 2)[0]
+                                            [numpy_data],
+                                            np.sum, 2)[0]
         arr_tiled = eoscale_manager.get_array(vpath_tiled).copy()
     with EOContextManager(nb_workers=5, tile_mode=False) as eoscale_manager:
         vpath_strips = generic_kernel_filter(eoscale_manager,
-                                          [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
-                                          np.sum, 2)[0]
+                                             [numpy_data],
+                                             np.sum, 2)[0]
         arr_strips = eoscale_manager.get_array(vpath_strips).copy()
     assert np.allclose(arr_tiled, arr_strips), "results with tile_mode=True != tile_mode=False"
