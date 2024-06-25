@@ -5,6 +5,7 @@ from eoscale.filters.concatenate_images import concatenate_images
 from eoscale.filters.generic_kernel import generic_kernel_filter
 from eoscale.manager import EOContextManager
 
+
 def test_release_memory(eoscale_paths):
     """
     Tests the release of memory associated with a concatenated raster image.
@@ -26,6 +27,8 @@ def test_release_memory(eoscale_paths):
         eoscale_manager.release(concatenate_vpath)
         with pytest.raises(KeyError):
             eoscale_manager.get_array(concatenate_vpath)
+
+
 @pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
 def test_tile_mode(raster_data_generator):
     """
