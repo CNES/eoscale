@@ -137,8 +137,8 @@ def test_n_to_m_imgs_margin(eoscale_paths, tmpdir):
         assert np.allclose(arr_margin, arr_no_margin) is False, "results with/without margin must be different"
         arr_margin = np.copy(arr_margin)
 
-        raster_margin_file = tmpdir / "raster_magin.tif"
-        raster_no_margin_file = tmpdir / "raster_no_magin.tif"
+        raster_margin_file = tmpdir / "raster_margin.tif"
+        raster_no_margin_file = tmpdir / "raster_no_margin.tif"
         eoscale_manager.write(key=out_vpath, img_path=str(raster_margin_file))
         eoscale_manager.write(key=out_vpath_no_marge, img_path=str(raster_no_margin_file))
 
