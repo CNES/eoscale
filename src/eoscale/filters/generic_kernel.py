@@ -89,6 +89,29 @@ def generic_kernel_filter(context: EOContextManager,
         Radius of the kernel window. Default is 1.
     mode : {'reflect', 'constant', 'nearest', 'mirror', 'wrap'}, optional
         The mode parameter determines how the array borders are handled. Default is 'constant'.
+            - 'reflect'  (d c b a | a b c d | d c b a)
+
+               The input is extended by reflecting about the edge of the last pixel. This mode is also
+               sometimes referred to as half-sample symmetric.
+
+            - 'constant' (k k k k | a b c d | k k k k)
+
+               The input is extended by filling all values beyond the edge with the same constant value,
+               defined by the cval parameter.
+
+            - 'nearest'  (a a a a | a b c d | d d d d)
+
+               The input is extended by replicating the last pixel.
+
+            - 'mirror'   (d c b | a b c d | c b a)
+
+               The input is extended by reflecting about the center of the last pixel.
+               This mode is also sometimes referred to as whole-sample symmetric.
+
+            - 'wrap'     (a b c d | a b c d | a b c d)
+
+               The input is extended by wrapping around to the opposite edge.
+
     cval : float, optional
         Value to fill past edges of input if mode is 'constant'. Default is 0.0.
     dtype : DTypeLike, optional
@@ -100,6 +123,20 @@ def generic_kernel_filter(context: EOContextManager,
     -------
     list[VirtualPath]
         The paths to the output virtual files.
+
+    Note
+    ----
+    under the hood `scipy.ndimage.generic_filter <https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.generic_filter.html>`_
+    is called
+
+    Example
+    -------
+    >>> # sum in a 5x5 sliding window
+    >>> with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+    >>>     out_vpath = generic_kernel_filter(eoscale_manager,
+    >>>                                       ['/path/to/input.tif'],
+    >>>                                       np.sum, kernel_radius=2)[0]
+    >>>     arr_margin = eoscale_manager.get_array(out_vpath)
     """
     imgs = []
     for input_file in inputs:
