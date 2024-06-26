@@ -72,6 +72,14 @@ def minmax_filter(context: EOContextManager,
     -------
     tuple[float, float]
         Tuple containing the computed minimum and maximum values from the input rasters.
+
+    Example
+    -------
+    >>> with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+    >>>     min_max = minmax_filter(eoscale_manager, ['/path/to/input.tif',
+    >>>                                               '/path/to/other_input.tif'])
+    >>>     print(min_max)
+    0.0 100.0
     """
     imgs = [context.open_raster(raster_path=img) for img in inputs]
     return n_images_to_m_scalars(inputs=imgs,
