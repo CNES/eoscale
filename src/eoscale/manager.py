@@ -1,3 +1,5 @@
+import warnings
+
 import rasterio
 import uuid
 import numpy
@@ -9,7 +11,20 @@ import eoscale.data_types as eodt
 
 
 class EOContextManager:
+    """
+    A context manager for managing shared resources and memory views in an Earth Observation (EO) processing context.
 
+    This class handles the creation, management, and release of shared resources, such as raster images,
+    and their associated memory views. It supports multi-processing and tile-based operations.
+
+    Parameters
+    ----------
+    nb_workers : int
+        The number of workers to use for processing.
+    tile_mode : bool, optional
+        A flag indicating whether tile-based processing mode is enabled (default is False).
+
+    """
     def __init__(self,
                  nb_workers: int,
                  tile_mode: bool = False):
@@ -25,13 +40,18 @@ class EOContextManager:
         self.shared_mem_views: dict = dict()
 
     def __enter__(self):
-        self.start()
+        self._start()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.end()
+        self._end()
 
-    # Private methods
+    def _start(self) -> None:
+        if len(self.shared_resources) > 0:
+            self._release_all()
+
+    def _end(self) -> None:
+        self._release_all()
 
     def _release_all(self):
 
@@ -43,12 +63,26 @@ class EOContextManager:
 
         self.shared_resources = dict()
 
-    # Public methods
-
     def open_raster(self,
-                    raster_path: str) -> None:
+                    raster_path: str) -> eodt.VirtualPath:
         """
-            Create an new shared instance from file
+        Opens a raster file and registers it as a shared resource.
+
+        Parameters
+        ----------
+        raster_path : str
+            The file path to the raster image to be opened.
+
+        Returns
+        -------
+        VirtualPath
+            The virtual path to the shared raster resource.
+
+        Example
+        -------
+        >>> virtual_path = open_raster('/path/to/raster/file.tif')
+        >>> print(virtual_path)
+        '/virtual/path/to/raster/resource'
         """
 
         new_shared_resource = eosh.EOShared()
@@ -69,14 +103,34 @@ class EOContextManager:
         self.shared_data_types[new_shared_resource.virtual_path] = eodt.DataType.POINTCLOUD
         return new_shared_resource.virtual_path
 
-    def create_image(self, profile: dict) -> str:
+    def create_image(self, profile: rasterio.profiles.Profile) -> str:
         """
-            Given a profile with at least the following keys:
-            count
-            height
-            width
-            dtype
-            this method allocates a shared image and its metadata 
+        Creates an image full of zeros with the specified raster profile and manages shared resources.
+        The image generated can be accessed from any filter
+
+        Parameters
+        ----------
+        profile : rasterio.profiles.Profile
+            A dictionary containing the raster profile specifications.
+            This includes details such as dimensions, data type, and other metadata necessary
+            for creating the raster array.
+
+        Returns
+        -------
+        str
+            The virtual path to the created raster image.
+
+        Example
+        -------
+        >>> profile = {
+        ...     'width': 512,
+        ...     'height': 512,
+        ...     'dtype': 'uint8',
+        ...     'count': 1,
+        ...     'driver': 'GTiff'
+        ... }
+        >>> virtual_path = create_image(profile)
+        >>> vp_path_list = n_images_to_m_images_filter(inputs=[virtual_path],...)
         """
         eoshared_instance = eosh.EOShared()
         eoshared_instance.create_array(profile=profile)
@@ -173,19 +227,53 @@ class EOContextManager:
             return self.shared_resources[key].get_array(tile=tile,
                                                         data_type=self.shared_data_types[key])
 
-    def get_profile(self, key: str) -> dict:
+    def get_profile(self, key: str) -> rasterio.profiles.Profile:
         """
-            This method returns a profile from the key given by the user.
-            This key can be a shared resource key or a memory view key
+        Retrieves the raster profile associated with a given key.
+
+        Parameters
+        ----------
+        key : str
+            The key associated with the raster resource whose profile is to be retrieved.
+
+        Returns
+        -------
+        Profile
+            A dictionary containing the raster profile specifications.
+
+        Raises
+        ------
+        KeyError
+            If the key does not exist.
+
+        Example
+        -------
+        >>> profile = get_profile('some_key')
+        >>> print(profile)
+        {
+            'driver': 'GTiff',
+            'dtype': 'uint8',
+            'nodata': None,
+            'width': 512,
+            'height': 512,
+            'count': 1,
+            'crs': None,
+            'transform': Affine(1.0, 0.0, 0.0, 0.0, -1.0, 0.0)
+        }
         """
         if key in self.shared_mem_views:
             return copy.deepcopy(self.shared_mem_views[key][2])
         else:
             return self.shared_resources[key].get_profile()
 
-    def release(self, key: str):
+    def release(self, key: str) -> None:
         """
-            Release definitely the corresponding shared resource
+        Releases the shared resource and removes all associated memory views.
+
+        Parameters:
+        -----------
+        key : str
+            The key associated with the shared resource to be released.
         """
         mem_view_keys_to_remove: list = []
         # Remove from the mem view dictionnary all the key related to the share resource key
@@ -201,9 +289,20 @@ class EOContextManager:
 
         del self.shared_data_types[key]
 
-    def write(self, key: str, img_path: str):
+    def write(self, key: str, img_path: str) -> None:
         """
-            Write the corresponding shared resource to disk
+        Writes the raster data associated with the given key to a specified file path.
+
+        Parameters
+        ----------
+        key : str
+            The key associated with the shared raster resource to be written.
+        img_path : str
+            The file path where the raster image will be written.
+
+        Example
+        -------
+        >>> write('some_key', '/path/to/output/file.tif')
         """
         if key in self.shared_resources:
             profile = self.shared_resources[key].get_profile()
@@ -211,11 +310,23 @@ class EOContextManager:
             with rasterio.open(img_path, "w", **profile) as out_dataset:
                 out_dataset.write(img_buffer)
         else:
-            print(f"WARNING: the key {key} to write is not known by the context manager")
+            warnings.warn(f"WARNING: the key {key} to write is not known by the context manager")
 
-    def update_profile(self, key: str, profile: dict) -> str:
+    def update_profile(self, key: str, profile: rasterio.profiles.Profile) -> str:
         """
-            This method update the profile of a given key and returns the new key
+        Updates the raster profile associated with a given key and returns the new key.
+
+        Parameters
+        ----------
+        key : str
+            The key associated with the shared raster resource to be updated.
+        profile : Profile
+            A dictionary containing the new raster profile specifications.
+
+        Returns
+        -------
+        str
+        The new key associated with the updated shared raster resource.
         """
         tmp_value = self.shared_resources[key]
         tmp_data_type = self.shared_data_types[key]
@@ -227,9 +338,3 @@ class EOContextManager:
         self.shared_data_types[new_key] = tmp_data_type
         return new_key
 
-    def start(self):
-        if len(self.shared_resources) > 0:
-            self._release_all()
-
-    def end(self):
-        self._release_all()
