@@ -25,9 +25,9 @@ import uuid
 import numpy
 import copy
 
-import eoscale.utils as eoutils
-import eoscale.shared as eosh
-import eoscale.data_types as eodt
+import eoscale.core.utils as eoutils
+import eoscale.core.shared as eosh
+import eoscale.core.data_types as eodt
 
 
 class EOContextManager:

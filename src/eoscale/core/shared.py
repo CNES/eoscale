@@ -26,8 +26,8 @@ import uuid
 import os
 import json
 import copy
-import eoscale.utils as eoutils
-import eoscale.data_types as eodt
+import eoscale.core.utils as eoutils
+import eoscale.core.data_types as eodt
 
 EOSHARED_PREFIX: str = "eoshared"
 EOSHARED_MTD: str = "metadata"

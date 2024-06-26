@@ -25,11 +25,11 @@ import rasterio
 from scipy.ndimage import generic_filter
 import pytest
 
-from eoscale.eo_executors import compute_mp_tiles
+from eoscale.core.eo_executors import compute_mp_tiles
 from eoscale.filters.concatenate_images import concatenate_images
 from eoscale.filters.generic_kernel import generic_kernel_filter
 from eoscale.filters.stats_minmax import minmax_filter
-from eoscale.manager import EOContextManager
+from eoscale.core.manager import EOContextManager
 from tests.utils import read_raster, assert_profiles
 
 
@@ -155,7 +155,7 @@ def test_n_to_m_imgs_margin(eoscale_paths, tmpdir):
                                           [eoscale_paths.dsm_raster, eoscale_paths.dsm_raster],
                                           np.sum, 2)[0]
         arr_margin = eoscale_manager.get_array(out_vpath)
-        with patch('eoscale.eo_executors.compute_mp_tiles', new=compute_mp_tiles_margin_0):
+        with patch('eoscale.core.eo_executors.compute_mp_tiles', new=compute_mp_tiles_margin_0):
             out_vpath_no_marge = generic_kernel_filter(eoscale_manager,
                                                        [eoscale_paths.dsm_raster,
                                                         eoscale_paths.dsm_raster],

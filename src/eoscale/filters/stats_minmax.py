@@ -22,9 +22,9 @@ from typing import List, Tuple
 
 import numpy as np
 
-from eoscale.data_types import VirtualPath
-from eoscale.eo_executors import n_images_to_m_scalars
-from eoscale.manager import EOContextManager
+from eoscale.core.data_types import VirtualPath
+from eoscale.core.eo_executors import n_images_to_m_scalars
+from eoscale.core.manager import EOContextManager
 
 
 def stats_filter(input_buffers: list,

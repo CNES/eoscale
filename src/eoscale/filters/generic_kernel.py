@@ -19,15 +19,17 @@
 # limitations under the License.
 
 from typing import Literal, Callable, Optional, Any, List, Dict, Union
+from pathlib import Path
 
 import numpy as np
-
-from eoscale.data_types import VirtualPath
-from eoscale.eo_executors import n_images_to_m_images_filter
-from eoscale.manager import EOContextManager
 from numpy.typing import DTypeLike
 from scipy.ndimage import generic_filter
-from pathlib import Path
+
+from eoscale.core.data_types import VirtualPath
+from eoscale.core.eo_executors import n_images_to_m_images_filter
+from eoscale.core.manager import EOContextManager
+
+
 
 
 def sliding_window_reduce_with_kernel(arr, func: Callable, kernel_size: tuple,
