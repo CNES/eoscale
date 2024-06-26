@@ -84,6 +84,13 @@ def concatenate_images(context: EOContextManager, inputs: List[Union[str, Virtua
     ------
     ValueError
         If more than one output path is generated.
+
+    Example
+    -------
+    >>> with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+    >>>     concatenate_vpath = concatenate_images(eoscale_manager, ['/path/to/input.tif',
+    >>>                                                              '/path/to/other_input.tif'])
+    >>>     concatenate_array = eoscale_manager.get_array(concatenate_vpath)
     """
     imgs = []
     for input_file in inputs:
