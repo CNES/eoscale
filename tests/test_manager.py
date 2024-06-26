@@ -79,3 +79,25 @@ def test_create_memview(raster_data_generator):
         new_key = eoscale_manager.create_memview(key=access_key, arr_subset=data, arr_subset_profile=profile)
         arr_from_memview = eoscale_manager.get_array(new_key)
         assert np.allclose(arr_from_memview, data), "EOContextManager.get_array method alter data coming from create_memview"
+
+@pytest.mark.parametrize("raster_data_generator", [np.expand_dims(np.random.random((512, 512)), axis=0)], indirect=True)
+def test_create_image(raster_data_generator):
+    """
+    Tests the creation of an image with specified raster profile characteristics and verifies
+    the integrity of the created image.
+
+    Parameters:
+    -----------
+    raster_data_generator : generator (fixture, indirect)
+        Generates random 2D raster data of dimensions 512x512, expanded along a third dimension.
+    """
+    with rasterio.open(raster_data_generator, "r") as raster_dataset:
+        profile = raster_dataset.profile
+    ref_width = profile["width"]
+    ref_height = profile["height"]
+    with EOContextManager(nb_workers=4, tile_mode=True) as eoscale_manager:
+        new_key = eoscale_manager.create_image(profile)
+        arr = eoscale_manager.get_array(new_key)
+        arr_val, count = np.unique(arr, return_counts=True)
+        assert np.allclose(0, arr_val) and ref_width * ref_height == count[0], "all values must be 0"
+        assert profile == eoscale_manager.get_profile(new_key), "profile has been altered"
