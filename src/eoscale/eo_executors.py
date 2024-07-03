@@ -515,6 +515,7 @@ def compute_target_geometry(point_cloud_key: str,
     return roi
 
 
+@eotools.deprecated()
 def execute_filter_point_cloud_to_n_images(point_cloud_filter: Callable,
                                            point_cloud_filter_parameters: dict,
                                            point_cloud_key: str,
@@ -549,6 +550,7 @@ def execute_filter_point_cloud_to_n_images(point_cloud_filter: Callable,
     return output_buffer, tile
 
 
+@eotools.deprecated()
 def point_cloud_to_image(input_point_cloud: str = None,
                          point_cloud_filter: Callable = None,
                          point_cloud_filter_parameters: dict = None,

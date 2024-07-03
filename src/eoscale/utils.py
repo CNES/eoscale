@@ -1,3 +1,7 @@
+import functools
+import warnings
+from typing import Optional
+
 import rasterio
 from rasterio.profiles import DefaultGTiffProfile
 from rasterio.transform import Affine
@@ -8,6 +12,48 @@ MpTile = namedtuple('MpTile', ["start_x", "start_y", "end_x", "end_y", "top_marg
                                "bottom_margin"])
 
 JSON_NONE: str = "none"
+
+
+def deprecated(message: Optional[str] = None):
+    """
+    Decorator to mark functions as deprecated.
+
+    This decorator issues a warning when the decorated function is called, indicating
+    that the function is deprecated and may be removed in a future version.
+
+    Parameters
+    ----------
+    message : str, optional
+        An optional message to include in the warning, providing additional information
+        about the deprecation, such as suggested alternatives.
+
+    Returns
+    -------
+    function
+        The decorated function which will issue a deprecation warning when called.
+
+    Examples
+    --------
+    >>> @deprecated("Use `new_function` instead.")
+    ... def old_function():
+    ...     pass
+    >>> old_function()
+    __main__:2: DeprecationWarning: Call to deprecated function old_function: Use `new_function` instead.
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapped_func(*args, **kwargs):
+            warnings.warn(
+                f"Call to deprecated function {func.__name__} {f': {message}' if message else ''}",
+                category=DeprecationWarning,
+                stacklevel=2
+            )
+            return func(*args, **kwargs)
+
+        return wrapped_func
+
+    return decorator
 
 
 def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
