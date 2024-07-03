@@ -21,8 +21,8 @@
 import numpy
 from rasterio.fill import fillnodata
 
-import eoscale.manager as eom
-import eoscale.eo_executors as eoexe
+import eoscale.core.manager as eom
+import eoscale.core.eo_executors as eoexe
 
 
 def nodata_filter(input_buffers: list, 
