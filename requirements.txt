@@ -5,3 +5,7 @@ laspy
 tqdm
 scipy
 pytest
+sphinx
+sphinx-autodoc-typehints
+sphinx-rtd-theme
+myst_nb==0.17.2
