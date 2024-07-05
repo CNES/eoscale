@@ -1,5 +1,7 @@
 numpy
+pyyaml
 rasterio
 laspy
 tqdm
 scipy
+pytest

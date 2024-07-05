@@ -1,12 +1,60 @@
+import functools
+import warnings
+from typing import Optional
+
 import rasterio
 from rasterio.profiles import DefaultGTiffProfile
 from rasterio.transform import Affine
 import numpy
 from collections import namedtuple
 
-MpTile = namedtuple('MpTile', ["start_x", "start_y", "end_x", "end_y", "top_margin", "right_margin", "left_margin", "bottom_margin"])
+MpTile = namedtuple('MpTile', ["start_x", "start_y", "end_x", "end_y", "top_margin", "right_margin", "left_margin",
+                               "bottom_margin"])
 
 JSON_NONE: str = "none"
+
+
+def deprecated(message: Optional[str] = None):
+    """
+    Decorator to mark functions as deprecated.
+
+    This decorator issues a warning when the decorated function is called, indicating
+    that the function is deprecated and may be removed in a future version.
+
+    Parameters
+    ----------
+    message : str, optional
+        An optional message to include in the warning, providing additional information
+        about the deprecation, such as suggested alternatives.
+
+    Returns
+    -------
+    function
+        The decorated function which will issue a deprecation warning when called.
+
+    Examples
+    --------
+    >>> @deprecated("Use `new_function` instead.")
+    ... def old_function():
+    ...     pass
+    >>> old_function()
+    __main__:2: DeprecationWarning: Call to deprecated function old_function: Use `new_function` instead.
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapped_func(*args, **kwargs):
+            warnings.warn(
+                f"Call to deprecated function {func.__name__} {f': {message}' if message else ''}",
+                category=DeprecationWarning,
+                stacklevel=2
+            )
+            return func(*args, **kwargs)
+
+        return wrapped_func
+
+    return decorator
+
 
 def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
     """
@@ -46,7 +94,8 @@ def rasterio_profile_to_dict(profile: rasterio.DatasetReader.profile) -> dict:
             metadata[key] = value
     return metadata
 
-def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
+
+def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile:
     """
         Convert a serializable dictionnary to a rasterio profile
     """
@@ -67,7 +116,7 @@ def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
         elif key.startswith("transform_"):
             continue
         elif key == "transform":
-            if value is None :
+            if value is None:
                 rasterio_profile["transform"] = None
         elif key == "nodata":
             if value == JSON_NONE:
@@ -79,6 +128,7 @@ def dict_to_rasterio_profile(metadata: dict) -> rasterio.DatasetReader.profile :
 
     return rasterio_profile
 
+
 def create_default_rasterio_profile(nb_bands: int,
                                     dtype: numpy.dtype,
                                     xstart: float,
@@ -86,16 +136,16 @@ def create_default_rasterio_profile(nb_bands: int,
                                     xsize: int,
                                     ysize: int,
                                     resolution: float,
-                                    nodata: float = None) -> rasterio.DatasetReader.profile :
+                                    nodata: float = None) -> rasterio.DatasetReader.profile:
     transform = Affine.translation(xstart, ystart)
     transform = transform * Affine.scale(resolution, -resolution)
     profile = DefaultGTiffProfile(
-        count = nb_bands,
-        dtype = dtype,
-        width = xsize,
-        height = ysize,
-        transform = transform,
-        nodata = nodata
+        count=nb_bands,
+        dtype=dtype,
+        width=xsize,
+        height=ysize,
+        transform=transform,
+        nodata=nodata
     )
 
     return profile
