@@ -6,5 +6,6 @@ Tutorials
    :caption: Contents:
 
    notebooks/chain_filters
+   notebooks/water_mask
    notebooks/profiling
    notebooks/common_errors
