@@ -1,9 +1,9 @@
-Advanced uses
-=============
+API
+===
 
 EOSCale project comes with functions which help user to build their own filter.
 
-.. automodule:: eoscale.core
+.. automodule:: eoscale.core.manager
    :members:
    :undoc-members:
    :show-inheritance:

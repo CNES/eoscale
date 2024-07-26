@@ -12,7 +12,7 @@ Welcome to EOScale's documentation!
 
    Tutorials <tutorials>
    Available Filters <module_filters>
-   Advanced uses <advanced_uses>
+   API <advanced_uses>
    Contributing <contributing>
 
 Indices and tables
