@@ -12,6 +12,8 @@ The last part of the script become
 
 .. code-block:: python
 
+    from memory_profiler import profile
+
     @profile
     def main():
         water_mask_agg = Path(OUTPUT_DIR) / "water_mask_agg.tif"
