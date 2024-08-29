@@ -29,10 +29,10 @@ import numpy
 import math
 import copy
 
-import eoscale.core.shared as eosh
-import eoscale.core.utils as eotools
-import eoscale.core.manager as eom
-import eoscale.core.data_types as eodt
+import eoscale.shared as eosh
+import eoscale.utils as eotools
+import eoscale.manager as eom
+import eoscale.data_types as eodt
 
 
 def compute_mp_strips(image_height: int,

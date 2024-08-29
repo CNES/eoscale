@@ -23,9 +23,9 @@ from typing import List, Union
 
 import numpy as np
 
-from eoscale.core.data_types import VirtualPath
-from eoscale.core.eo_executors import n_images_to_m_images_filter
-from eoscale.core.manager import EOContextManager
+from eoscale.data_types import VirtualPath
+from eoscale.eo_executors import n_images_to_m_images_filter
+from eoscale.manager import EOContextManager
 
 from numpy.typing import DTypeLike
 

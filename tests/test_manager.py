@@ -24,7 +24,7 @@ import rasterio
 
 from eoscale.filters.concatenate_images import concatenate_images
 from eoscale.filters.generic_kernel import generic_kernel_filter
-from eoscale.core.manager import EOContextManager
+from eoscale.manager import EOContextManager
 
 
 def test_release_memory(eoscale_paths):

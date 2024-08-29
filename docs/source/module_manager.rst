@@ -1,7 +1,7 @@
 Manager
 =======
 
-.. automodule:: eoscale.core.manager
+.. automodule:: eoscale.manager
    :members:
    :undoc-members:
    :show-inheritance:

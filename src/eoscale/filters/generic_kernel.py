@@ -25,9 +25,9 @@ import numpy as np
 from numpy.typing import DTypeLike
 from scipy.ndimage import generic_filter
 
-from eoscale.core.data_types import VirtualPath
-from eoscale.core.eo_executors import n_images_to_m_images_filter
-from eoscale.core.manager import EOContextManager
+from eoscale.data_types import VirtualPath
+from eoscale.eo_executors import n_images_to_m_images_filter
+from eoscale.manager import EOContextManager
 
 
 

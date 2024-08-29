@@ -48,7 +48,7 @@ which will prompt in your terminal something as
 
 As you can see, the maximum memory usage is 1.2 GB. It is important to note that it is the ``compute_ndwi`` function
 that adds the most data to memory, but it is also this function that is responsible for reading Sentinel-2 images to feed EOScale.
-It is also important to note that each call to :func:`eoscale.core.eo_executors.n_images_to_m_images_filter`. via the EOScale
+It is also important to note that each call to :func:`eoscale.eo_executors.n_images_to_m_images_filter`. via the EOScale
 :doc:`available filters <module_filters>` or your own filters will generate numpy arrays in memory which will
 be kept until the context manager is closed.
 
@@ -57,4 +57,4 @@ be kept until the context manager is closed.
 
     As EOScale stores all the data manipulated in memory, it is important to choose the type of these
     variables carefully. It is also possible to delete certain variables that have become useless in
-    the context manage using :meth:`eoscale.core.manager.EOContextManager.release`.
+    the context manage using :meth:`eoscale.manager.EOContextManager.release`.
