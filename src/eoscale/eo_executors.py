@@ -300,6 +300,7 @@ def n_images_to_m_images_filter(inputs: list = None,
     ValueError
         If no context manager is provided.
     """
+    print("call n_images_to_m_images_filter")
     if len(inputs) < 1:
         raise ValueError("At least one input image must be given.")
 
