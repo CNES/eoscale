@@ -99,6 +99,10 @@ def generic_kernel_filter(context: EOContextManager,
                           ) -> List[VirtualPath]:
     """Applies a sliding window reduction using a specified kernel and function to a list of input.
 
+    Warning
+    -------
+    Strong hypothesis: all input image are in the same geometry and have the same size
+
     Parameters
     ----------
     context : EOContextManager
