@@ -79,6 +79,10 @@ def minmax_filter(context: EOContextManager,
     """
     Minimum and maximum values from a list of raster inputs using n_images_to_m_scalars.
 
+    Warning
+    -------
+    Strong hypothesis: all input image are in the same geometry and have the same size
+
     Parameters
     ----------
     context : EOContextManager

@@ -86,6 +86,10 @@ def concatenate_images(context: EOContextManager, inputs: List[Union[str, Virtua
     """
     Concatenates a list of input images into a single output image.
 
+    Warning
+    -------
+    Strong hypothesis: all input image are in the same geometry and have the same size
+
     Parameters
     ----------
     context : EOContextManager

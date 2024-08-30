@@ -415,6 +415,10 @@ def n_images_to_m_scalars(inputs: List[str],
     aggregates the resulting scalars using `concatenate_filter`, and returns the final list of
     aggregated scalars.
 
+    Warning
+    -------
+    Strong hypothesis: all input image are in the same geometry and have the same size
+
     Parameters
     ----------
     inputs : list[str]

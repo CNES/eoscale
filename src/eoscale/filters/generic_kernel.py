@@ -19,15 +19,17 @@
 # limitations under the License.
 
 from typing import Literal, Callable, Optional, Any, List, Dict, Union
+from pathlib import Path
 
 import numpy as np
+from numpy.typing import DTypeLike
+from scipy.ndimage import generic_filter
 
 from eoscale.data_types import VirtualPath
 from eoscale.eo_executors import n_images_to_m_images_filter
 from eoscale.manager import EOContextManager
-from numpy.typing import DTypeLike
-from scipy.ndimage import generic_filter
-from pathlib import Path
+
+
 
 
 def sliding_window_reduce_with_kernel(arr, func: Callable, kernel_size: tuple,
@@ -96,6 +98,10 @@ def generic_kernel_filter(context: EOContextManager,
                           func_kwarg: Optional[Dict[str, Any]] = None
                           ) -> List[VirtualPath]:
     """Applies a sliding window reduction using a specified kernel and function to a list of input.
+
+    Warning
+    -------
+    Strong hypothesis: all input image are in the same geometry and have the same size
 
     Parameters
     ----------
