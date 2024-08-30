@@ -18,6 +18,7 @@ stages:
     - sonarqube
     - package
     - deploy
+    - doc
     - scan Xray
 
 # Default configuration for all jobs
@@ -75,6 +76,7 @@ python:
         untracked: true
         expire_in: 1 day
 
+
 pytest:
     stage: quality
     image: ${ARTIFACTORY_URL}/${TAG_IMAGE_PYTHON}
@@ -113,3 +115,38 @@ pylint_analysis:
         paths:
           - ./pylint_report.json
         expire_in: 1 day
+
+build-doc:
+  stage: doc
+  image: ${ARTIFACTORY_URL}/${TAG_IMAGE_PYTHON}
+  only:
+    - merge_requests
+    - master
+  needs:
+    - python
+  before_script:
+    - cat ${CNES_CERTIFICATE} > /usr/local/share/ca-certificates/my-cert.crt
+    - update-ca-certificates
+    - pip install --upgrade pip
+    - pip install sphinx sphinx-autodoc-typehints sphinx-rtd-theme myst-nb myst-parser
+  script:
+    - source python_env/bin/activate
+    - sphinx-build ./docs/source ./docs/build
+  artifacts:
+    paths:
+      - docs/build
+    expire_in: 1 day
+
+pages:
+  stage: doc
+  image: ${ARTIFACTORY_URL}/${TAG_IMAGE_PYTHON}
+  needs:
+    - build-doc
+  dependencies:
+    - build-doc
+  script:
+    - mkdir public
+    - cp -r docs/build/* public/
+  artifacts:
+    paths: [public]
+    expire_in: 1h
