@@ -38,12 +38,16 @@ import eoscale.data_types as eodt
 def compute_mp_strips(image_height: int,
                       image_width: int,
                       nb_workers: int,
-                      stable_margin: int) -> list:
+                      stable_margin: int,
+                      context_manager: eom.EOContextManager) -> list:
     """
         Return a list of strips 
     """
 
-    strip_height = image_height // nb_workers
+    if context_manager.tile_max_size > 0:
+        strip_height = context_manager.tile_max_size
+    else:
+        strip_height = image_height // nb_workers
 
     strips = []
     start_x: int = 0
@@ -116,8 +120,14 @@ def compute_mp_tiles(inputs: list,
         left_margin: int = 0
 
         # Force to make square tiles (except the last one unfortunately)
-        nb_pixels_per_worker: int = (image_width * image_height) // nb_workers
-        tile_size = int(math.sqrt(nb_pixels_per_worker))
+        if context_manager.tile_max_size > 0:
+            # Limit size by worker, can help to avoid memory overconsumption
+            tile_size = min(int(math.sqrt((image_width * image_height) // nb_workers)),
+                        context_manager.tile_max_size)
+        else:
+            nb_pixels_per_worker: int = (image_width * image_height) // nb_workers
+            tile_size = int(math.sqrt(nb_pixels_per_worker))
+
         nb_tiles_x = image_width // tile_size
         nb_tiles_y = image_height // tile_size
         if image_width % tile_size > 0:
@@ -155,7 +165,8 @@ def compute_mp_tiles(inputs: list,
         return compute_mp_strips(image_height=image_height,
                                  image_width=image_width,
                                  nb_workers=nb_workers,
-                                 stable_margin=stable_margin)
+                                 stable_margin=stable_margin,
+                                 context_manager=context_manager)
 
 
 def default_generate_output_profiles(input_profiles: list) -> list:

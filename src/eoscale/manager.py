@@ -43,14 +43,20 @@ class EOContextManager:
         The number of workers to use for processing.
     tile_mode : bool, optional
         A flag indicating whether tile-based processing mode is enabled (default is False).
+    tile_max_size : int, optional
+        If fixed, the maximum tile size won't be bigger than this limit (default is 0). 
+        This can help to limit memory usage, when a lot of memory is allocated in the multiprocessed function
 
     """
     def __init__(self,
                  nb_workers: int,
-                 tile_mode: bool = False):
+                 tile_mode: bool = False,
+                 tile_max_size: int = 0):
 
         self.nb_workers = nb_workers
         self.tile_mode = tile_mode
+        self.tile_max_size = tile_max_size
+        
         self.shared_resources: dict = dict()
 
         # Key is the unique shared resource key and the value is the data type of the shared resources
